@@ -1203,6 +1203,210 @@ export const userAssociationRelations = relations(userAssociation, ({ one }) => 
   }),
 }));
 
+export const battlePyramid = mysqlTable("BattlePyramid", {
+  id: varchar("id", { length: 191 }).primaryKey().notNull(),
+  name: varchar("name", { length: 191 }).notNull(),
+  tierCount: smallint("tierCount", { unsigned: true }).default(10).notNull(),
+  isEnabled: boolean("isEnabled").default(false).notNull(),
+  isArchived: boolean("isArchived").default(false).notNull(),
+  minRank: mysqlEnum("minRank", consts.UserRanks),
+  maxRank: mysqlEnum("maxRank", consts.UserRanks),
+  minLevel: int("minLevel"),
+  maxLevel: int("maxLevel"),
+  minExperience: int("minExperience"),
+  maxExperience: int("maxExperience"),
+  resetsAllowed: smallint("resetsAllowed", { unsigned: true }).default(0).notNull(),
+  createdAt: datetime("createdAt", { mode: "date", fsp: 3 })
+    .default(sql`(CURRENT_TIMESTAMP(3))`)
+    .notNull(),
+  updatedAt: datetime("updatedAt", { mode: "date", fsp: 3 })
+    .default(sql`(CURRENT_TIMESTAMP(3))`)
+    .notNull(),
+});
+
+export type BattlePyramid = InferSelectModel<typeof battlePyramid>;
+
+export const pyramidTier = mysqlTable(
+  "PyramidTier",
+  {
+    id: varchar("id", { length: 191 }).primaryKey().notNull(),
+    battlePyramidId: varchar("battlePyramidId", { length: 191 }).notNull(),
+    tierNumber: smallint("tierNumber", { unsigned: true }).notNull(),
+    floorCount: smallint("floorCount", { unsigned: true }).default(10).notNull(),
+    scalingPercent: smallint("scalingPercent", { unsigned: true }).default(5).notNull(),
+  },
+  (table) => {
+    return {
+      TierIdFloorNumberKey: uniqueIndex("pyramidTierId_FloorNumber_key").on(
+        table.battlePyramidId,
+        table.tierNumber,
+      ),
+      TierNumberIdx: index("PyramidTier_tierNumber_idx").on(table.tierNumber),
+    };
+  },
+);
+
+export type PyramidTier = InferSelectModel<typeof pyramidTier>;
+
+export const pyramidTierRelations = relations(pyramidTier, ({ one }) => ({
+  battlePyramid: one(battlePyramid, {
+    fields: [pyramidTier.battlePyramidId],
+    references: [battlePyramid.id],
+  }),
+}));
+
+export const tierFloor = mysqlTable(
+  "TierFloor",
+  {
+    id: varchar("id", { length: 191 }).primaryKey().notNull(),
+    pyramidTierId: varchar("pyramidTierId", { length: 191 }).notNull(),
+    userId: varchar("userId", { length: 191 }).notNull(),
+    aiAugmentId: varchar("aiAugmentId", { length: 191 }),
+    floorNumber: smallint("floorNumber", { unsigned: true }).notNull(),
+  },
+  (table) => {
+    return {
+      TierIdFloorNumberKey: uniqueIndex("pyramidTierId_FloorNumber_key").on(
+        table.pyramidTierId,
+        table.floorNumber,
+      ),
+      floorNumberIdx: index("TierFloor_floorNumber_idx").on(table.floorNumber),
+    };
+  },
+);
+
+export type TierFloor = InferSelectModel<typeof tierFloor>;
+
+export const tierFloorRelations = relations(tierFloor, ({ one }) => ({
+  pyramidTier: one(pyramidTier, {
+    fields: [tierFloor.pyramidTierId],
+    references: [pyramidTier.id],
+  }),
+  enemy: one(userData, {
+    fields: [tierFloor.userId],
+    references: [userData.userId],
+  }),
+  aiAugment: one(aiAugment, {
+    fields: [tierFloor.aiAugmentId],
+    references: [aiAugment.id],
+  }),
+}));
+
+export const aiAugment = mysqlTable(
+  "AiAugment",
+  {
+    id: varchar("id", { length: 191 }).primaryKey().notNull(),
+    userId: varchar("userId", { length: 191 }).notNull(),
+    statTemplateId: varchar("statTemplateId", { length: 191 }),
+    aiProfileId: varchar("aiProfileId", { length: 191 }),
+    aiType: mysqlEnum("aiType", consts.BattleTypes).notNull(),
+  },
+  (table) => {
+    return {
+      userIdAiTypeKey: uniqueIndex("userId_aiType_key").on(table.userId, table.aiType),
+      userIdIdx: index("AiAugment_userId_idx").on(table.userId),
+    };
+  },
+);
+
+export type AiAugment = InferSelectModel<typeof aiAugment>;
+
+export const aiAugmentRelations = relations(aiAugment, ({ one }) => ({
+  statTemplate: one(statTemplate, {
+    fields: [aiAugment.statTemplateId],
+    references: [statTemplate.id],
+  }),
+  enemy: one(userData, {
+    fields: [aiAugment.userId],
+    references: [userData.userId],
+  }),
+  // aiProfile: one(aiAugment, {
+  //   fields: [aiAugment.aiProfileId],
+  //   references: [aiProfile.id],
+  // }),
+}));
+
+export const userPyramidProgress = mysqlTable(
+  "UserPyramidProgress",
+  {
+    id: varchar("id", { length: 191 }).primaryKey().notNull(),
+    userId: varchar("userId", { length: 191 }).notNull(),
+    battlePyramidId: varchar("battlePyramidId", { length: 191 }).notNull(),
+    tierNumber: smallint("tierNumber", { unsigned: true }).notNull(),
+    floorNumber: smallint("floorNumber", { unsigned: true }).notNull(),
+    resetTimes: smallint("resetTimes", { unsigned: true }).default(0).notNull(),
+  },
+  (table) => {
+    return {
+      userIdBattlePyramidKey: uniqueIndex("userId_battlePyramidId_key").on(
+        table.userId,
+        table.battlePyramidId,
+      ),
+      userIdIdx: index("UserPyramidProgress_userId_idx").on(table.userId),
+      battlePyramidIdIdx: index("UserPyramidProgress_battlePyramidId_idx").on(
+        table.battlePyramidId,
+      ),
+    };
+  },
+);
+
+export type UserPyramidProgress = InferSelectModel<typeof userPyramidProgress>;
+
+export const UserPyramidProgressRelations = relations(
+  userPyramidProgress,
+  ({ one }) => ({
+    battlePyramid: one(battlePyramid, {
+      fields: [userPyramidProgress.battlePyramidId],
+      references: [battlePyramid.id],
+    }),
+    user: one(userData, {
+      fields: [userPyramidProgress.userId],
+      references: [userData.userId],
+    }),
+  }),
+);
+
+export const statTemplate = mysqlTable(
+  "StatTemplate",
+  {
+    id: varchar("id", { length: 191 }).primaryKey().notNull(),
+    name: varchar("username", { length: 191 }).notNull(),
+    bloodlineId: varchar("bloodlineId", { length: 191 }).notNull(),
+    maxHealth: double("maxHealth").default(1).notNull(),
+    maxChakra: double("maxChakra").default(1).notNull(),
+    maxStamina: double("maxStamina").default(1).notNull(),
+    scalingType: mysqlEnum("scalingType", consts.ScalingTypes)
+      .default("PERCENTAGE")
+      .notNull(),
+    offenceType: mysqlEnum("offenceType", consts.OffenceTypes)
+      .default("highest")
+      .notNull(),
+    offence: double("ninjutsuDefence").default(0.2).notNull(),
+    ninjutsuDefence: double("ninjutsuDefence").default(0.15).notNull(),
+    genjutsuDefence: double("genjutsuDefence").default(0.15).notNull(),
+    taijutsuDefence: double("taijutsuDefence").default(0.15).notNull(),
+    bukijutsuDefence: double("bukijutsuDefence").default(0.15).notNull(),
+    strength: double("strength").default(0.05).notNull(),
+    intelligence: double("intelligence").default(0.05).notNull(),
+    willpower: double("willpower").default(0.05).notNull(),
+    speed: double("speed").default(0.05).notNull(),
+  },
+  (table) => {
+    return {
+      nameIdx: index("StatTemplate_userId_idx").on(table.name),
+    };
+  },
+);
+
+export type StatTemplate = InferSelectModel<typeof statTemplate>;
+
+export const statTemplateRelations = relations(statTemplate, ({ one }) => ({
+  bloodline: one(bloodline, {
+    fields: [statTemplate.bloodlineId],
+    references: [bloodline.id],
+  }),
+}));
+
 export const userData = mysqlTable(
   "UserData",
   {
