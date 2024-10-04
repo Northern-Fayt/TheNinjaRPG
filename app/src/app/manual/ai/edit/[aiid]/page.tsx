@@ -2,6 +2,7 @@
 
 import ContentBox from "@/layout/ContentBox";
 import Loader from "@/layout/Loader";
+import AiProfileEdit from "@/layout/AiProfileEdit";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { EditContent } from "@/layout/EditContent";
@@ -11,8 +12,7 @@ import { setNullsToEmptyStrings } from "@/utils/typeutils";
 import { canChangeContent } from "@/utils/permissions";
 import { insertUserDataSchema } from "@/drizzle/schema";
 import { useAiEditForm } from "@/libs/ais";
-import type { UserData } from "@/drizzle/schema";
-import type { UserJutsu } from "@/drizzle/schema";
+import type { AiWithRelations } from "@/routers/profile";
 
 export default function ManualAisEdit({ params }: { params: { aiid: string } }) {
   const aiId = params.aiid;
@@ -45,7 +45,7 @@ export default function ManualAisEdit({ params }: { params: { aiid: string } }) 
 }
 
 interface SingleEditUserProps {
-  user: UserData & { jutsus: UserJutsu[] };
+  user: AiWithRelations;
   refetch: () => void;
 }
 
@@ -78,6 +78,8 @@ const SingleEditUser: React.FC<SingleEditUserProps> = (props) => {
           />
         )}
       </ContentBox>
+
+      <AiProfileEdit userData={props.user} />
     </>
   );
 };
