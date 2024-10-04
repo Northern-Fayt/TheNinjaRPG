@@ -203,6 +203,20 @@ export const UserStatNames = [
 ] as const;
 export type UserStatName = (typeof UserStatNames)[number];
 
+export const OffenceTypes = [
+  "ninjutsu",
+  "genjutsu",
+  "taijutsu",
+  "bukijutsu",
+  "highest",
+] as const;
+
+export type OffenceType = (typeof OffenceTypes)[number];
+
+export const ScalingTypes = ["FLAT", "PERCENTAGE"] as const;
+
+export type ScalingType = (typeof ScalingTypes)[number];
+
 export const BattleTypes = [
   "ARENA",
   "COMBAT",
@@ -214,6 +228,7 @@ export const BattleTypes = [
   "QUEST",
   "VILLAGE_PROTECTOR",
   "TRAINING",
+  "PYRAMID",
 ] as const;
 export type BattleType = (typeof BattleTypes)[number];
 

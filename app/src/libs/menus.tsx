@@ -1,12 +1,13 @@
 import { type ReactNode } from "react";
 import Image from "next/image";
-import { Atom, Bug, User, Globe2, BookOpenText, Users } from "lucide-react";
+import { Atom, Bug, User, Globe2, BookOpenText, Users, Glasses } from "lucide-react";
 import { Paintbrush, MessagesSquare, Newspaper, Scale, Receipt } from "lucide-react";
 import { Inbox, Flag } from "lucide-react";
 import { calcIsInVillage } from "./travel/controls";
 import { api } from "@/utils/api";
 import { findVillageUserRelationship } from "@/utils/alliance";
 import type { UserWithRelations } from "@/server/api/routers/profile";
+import { canSeeSecretData } from "@/utils/permissions";
 
 export interface NavBarDropdownLink {
   href: string;
@@ -112,6 +113,15 @@ export const useGameMenu = (userData: UserWithRelations) => {
     const inHospital = userData.status === "HOSPITALIZED";
     const inBed = userData.status === "ASLEEP";
     const notAwake = inBattle || inHospital || inBed;
+
+    if (canSeeSecretData(userData.role)) {
+      systems.push({
+        href: "/staff",
+        name: "Staff",
+        icon: <Glasses key="staff" className="h-6 w-6" />,
+      });
+    }
+
     systems.forEach((system) => {
       if (system.requireAwake && notAwake) {
         if (inBattle) system.href = "/combat";
