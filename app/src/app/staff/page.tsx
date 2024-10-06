@@ -30,7 +30,12 @@ import { Swords } from "lucide-react";
 import { BATTLE_ARENA_DAILY_LIMIT } from "@/drizzle/constants";
 import type { z } from "zod";
 import type { GenericObject } from "@/layout/ItemWithEffects";
-import { createStatSchema, StatSchemaType } from "@/libs/combat/types";
+import {
+  createStatSchema,
+  createStatTemplateSchema,
+  StatSchemaType,
+  StatTemplateType,
+} from "@/libs/combat/types";
 import {
   Form,
   FormControl,
@@ -40,16 +45,24 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  CreateStatTemplate,
+  SelectStatTemplate,
+} from "@/layout/Staff/Content/StatTemplateCreator";
+import Accordion from "@/layout/Accordion";
 
-export default function Arena() {
-  // Tab selection
+export default function Staff() {
+  // State management
+  const [activeElement, setActiveElement] = useState("Stat Templates");
   const [tab, setTab] = useState<"Content" | "Tools" | "Monitoring" | null>(null);
+  const [selectedStatTemplate, setSelectedStatTemplate] =
+    useState<StatTemplateType | null>(null);
 
   // Ensure user is in village
   const { userData, access } = useRequireInVillage("/battlearena");
 
   // Guards
-  if (!access) return <Loader explanation="Accessing Battle Arena" />;
+  if (!access) return <Loader explanation="Accessing Staff Page" />;
   if (!userData) return <Loader explanation="Loading user" />;
   if (userData?.isBanned) return <BanInfo />;
 
@@ -73,7 +86,39 @@ export default function Arena() {
           />
         }
       >
-        {tab === "Content" && <div> </div>}
+        {tab === "Content" && (
+          <div className="grid grid-cols-1">
+            <Accordion
+              title="Stat Templates"
+              selectedTitle={activeElement}
+              unselectedSubtitle="Create or edit stat templates"
+              onClick={setActiveElement}
+            >
+              <SelectStatTemplate
+                selectedStatTemplate={selectedStatTemplate}
+                setSelectedStatTemplate={setSelectedStatTemplate}
+              />
+            </Accordion>
+
+            <Accordion
+              title="Battle Pyramid"
+              selectedTitle={activeElement}
+              unselectedSubtitle="Create or edit battle pyramids"
+              onClick={setActiveElement}
+            >
+              <div></div>
+            </Accordion>
+
+            <Accordion
+              title="Ai Augments"
+              selectedTitle={activeElement}
+              unselectedSubtitle="Create or edit ai augments"
+              onClick={setActiveElement}
+            >
+              <div></div>
+            </Accordion>
+          </div>
+        )}
         {tab === "Tools" && <div> </div>}
         {tab === "Monitoring" && (
           <div className="flex flex-col items-center">

@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { AttackMethods, AttackTargets, ItemRarities } from "@/drizzle/constants";
+import {
+  AttackMethods,
+  AttackTargets,
+  ItemRarities,
+  OffenceTypes,
+  ScalingTypes,
+} from "@/drizzle/constants";
 import { ItemSlotTypes, ItemTypes, JutsuTypes } from "@/drizzle/constants";
 import { LetterRanks, UserRanks, WeaponTypes } from "@/drizzle/constants";
 import { ElementNames } from "@/drizzle/constants";
@@ -14,6 +20,7 @@ import type { UserJutsu, UserItem, UserData } from "@/drizzle/schema";
 import type { TerrainHex } from "@/libs/hexgrid";
 import type { BattleType } from "@/drizzle/constants";
 import type { UserWithRelations } from "@/routers/profile";
+import { nanoid } from "nanoid";
 
 /**
  * BattleUserState is the data stored in the battle entry about a given user
@@ -1186,6 +1193,27 @@ export const createStatSchema = (min = 10, start = 10, user?: UserData) => {
 
 export const statSchema = createStatSchema();
 export type StatSchemaType = z.infer<typeof statSchema>;
+
+export const createStatTemplateSchema = () => {
+  return z.object({
+    id: z.string().default(nanoid()),
+    name: z.string().default("New Template"),
+    scalingType: z.enum(ScalingTypes).default("PERCENTAGE"),
+    offenceType: z.enum(OffenceTypes).default("highest"),
+    offence: z.coerce.number().default(0.2),
+    ninjutsuDefence: z.coerce.number().default(0.15),
+    genjutsuDefence: z.coerce.number().default(0.15),
+    taijutsuDefence: z.coerce.number().default(0.15),
+    bukijutsuDefence: z.coerce.number().default(0.15),
+    strength: z.coerce.number().default(0.05),
+    intelligence: z.coerce.number().default(0.05),
+    willpower: z.coerce.number().default(0.05),
+    speed: z.coerce.number().default(0.05),
+  });
+};
+
+export const statTemplateSchema = createStatTemplateSchema();
+export type StatTemplateType = z.infer<typeof statTemplateSchema>;
 
 export const actSchema = z.object({
   power: z.coerce.number().min(1).max(100).default(1),

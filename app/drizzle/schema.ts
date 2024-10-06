@@ -1370,8 +1370,8 @@ export const statTemplate = mysqlTable(
   "StatTemplate",
   {
     id: varchar("id", { length: 191 }).primaryKey().notNull(),
-    name: varchar("username", { length: 191 }).notNull(),
-    bloodlineId: varchar("bloodlineId", { length: 191 }).notNull(),
+    name: varchar("name", { length: 191 }).notNull(),
+    bloodlineId: varchar("bloodlineId", { length: 191 }),
     maxHealth: double("maxHealth").default(1).notNull(),
     maxChakra: double("maxChakra").default(1).notNull(),
     maxStamina: double("maxStamina").default(1).notNull(),
@@ -1381,7 +1381,7 @@ export const statTemplate = mysqlTable(
     offenceType: mysqlEnum("offenceType", consts.OffenceTypes)
       .default("highest")
       .notNull(),
-    offence: double("ninjutsuDefence").default(0.2).notNull(),
+    offence: double("offence").default(0.2).notNull(),
     ninjutsuDefence: double("ninjutsuDefence").default(0.15).notNull(),
     genjutsuDefence: double("genjutsuDefence").default(0.15).notNull(),
     taijutsuDefence: double("taijutsuDefence").default(0.15).notNull(),
