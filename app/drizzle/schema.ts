@@ -1322,10 +1322,10 @@ export const aiAugmentRelations = relations(aiAugment, ({ one }) => ({
     fields: [aiAugment.userId],
     references: [userData.userId],
   }),
-  // aiProfile: one(aiAugment, {
-  //   fields: [aiAugment.aiProfileId],
-  //   references: [aiProfile.id],
-  // }),
+  aiProfile: one(aiProfile, {
+    fields: [aiAugment.aiProfileId],
+    references: [aiProfile.id],
+  }),
 }));
 
 export const userPyramidProgress = mysqlTable(

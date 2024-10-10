@@ -105,8 +105,6 @@ export const CreateStatTemplate: React.FC<CreateStatTemplateProps> = (props) => 
   var defaultValues = statTemp;
   const statNames = Object.keys(defaultValues) as (keyof typeof defaultValues)[];
 
-  console.log("defaultValues", defaultValues);
-
   // Form setup
   const form = useForm<StatTemplateType>({
     defaultValues,
@@ -115,7 +113,6 @@ export const CreateStatTemplate: React.FC<CreateStatTemplateProps> = (props) => 
     resolver: zodResolver(statTemplateSchema),
   });
 
-  console.log("formValues", form.getValues());
   // Submit handler
   const onSubmit = form.handleSubmit((data) => {
     createStatTemplate(data);
@@ -127,7 +124,6 @@ export const CreateStatTemplate: React.FC<CreateStatTemplateProps> = (props) => 
       <Form {...form} key={statTemp.id}>
         <form className="grid grid-cols-2 gap-2" onSubmit={onSubmit}>
           {statNames.map((stat, i) => {
-            console.log("stat", stat);
             switch (stat) {
               case "id":
                 return null;

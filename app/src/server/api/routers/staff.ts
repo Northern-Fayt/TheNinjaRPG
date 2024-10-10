@@ -8,9 +8,10 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { canUnstuckVillage } from "@/utils/permissions";
 import type { inferRouterOutputs } from "@trpc/server";
-import type { UserStatus } from "@/drizzle/constants";
-import { statTemplateSchema } from "@/libs/combat/types";
+import { MAX_GENS_CAP, MAX_STATS_CAP, type UserStatus } from "@/drizzle/constants";
+import { statTemplateSchema, StatTemplateType } from "@/libs/combat/types";
 import { DrizzleClient } from "@/server/db";
+import { round } from "@/utils/math";
 
 export const staffRouter = createTRPCRouter({
   forceAwake: protectedProcedure
@@ -64,10 +65,13 @@ export const staffRouter = createTRPCRouter({
     }),
   upsertStatTemplate: protectedProcedure
     .output(baseServerResponse)
-    .input(statTemplateSchema) // Corrected input method
+    .input(statTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       // Guard
-      console.log(input);
+      const templateValidation = validateStatTemplate(input);
+      if (!templateValidation.success) {
+        return errorResponse(templateValidation.message);
+      }
       // Query
       const existingTemplate = input.id
         ? await fetchStatTemplate(ctx.drizzle, input.id)
@@ -123,4 +127,76 @@ export const fetchStatTemplate = async (
   return template;
 };
 
+const calcStatTemplateTotal = (stats: any): number => {
+  var result = round(
+    Object.values(stats)
+      .filter((stat) => typeof stat === "number")
+      .reduce((acc, val) => acc + val, 0),
+    5,
+  );
+  console.log("result", result);
+  return result;
+};
+
+const validateStatTemplate = (stats: StatTemplateType) => {
+  if (stats.scalingType === "FLAT") {
+    if (stats.bukijutsuDefence < 10 || stats.bukijutsuDefence > MAX_STATS_CAP)
+      return {
+        message: "bukijutsuDefence is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.genjutsuDefence < 10 || stats.genjutsuDefence > MAX_STATS_CAP)
+      return {
+        message: "genjutsuDefence is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.ninjutsuDefence < 10 || stats.ninjutsuDefence > MAX_STATS_CAP)
+      return {
+        message: "ninjutsuDefence is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.taijutsuDefence < 10 || stats.taijutsuDefence > MAX_STATS_CAP)
+      return {
+        message: "taijutsuDefence is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.offence < 10 || stats.offence > MAX_STATS_CAP)
+      return {
+        message: "Offence is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.intelligence < 10 || stats.intelligence > MAX_GENS_CAP)
+      return {
+        message: "Intelligence is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.strength < 10 || stats.strength > MAX_GENS_CAP)
+      return {
+        message: "Strength is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.speed < 10 || stats.speed > MAX_GENS_CAP)
+      return {
+        message: "Speed is either lower than 10 or above max stat cap",
+        success: false,
+      };
+    if (stats.willpower < 10 || stats.willpower > MAX_GENS_CAP)
+      return {
+        message: "Willpowder is either lower than 10 or above max stat cap",
+        success: false,
+      };
+  }
+
+  if (stats.scalingType === "PERCENTAGE") {
+    if (calcStatTemplateTotal(stats) !== 1)
+      return {
+        message: "Total of all stats must add to 1 when scaling type is PERCENTAGE",
+        success: false,
+      };
+    const emptyStats = Object.values(stats).filter((stat) => stat === 0).length;
+    if (emptyStats > 0) return { message: "Stats cannot be set to 0", success: false };
+  }
+
+  return { message: "Stat template is valid", success: true };
+};
 export type staffRouter = inferRouterOutputs<typeof staffRouter>;
