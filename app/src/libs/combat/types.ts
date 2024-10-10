@@ -477,6 +477,7 @@ export const PierceTag = z.object({
   residualModifier: z.coerce.number().min(0).max(2).default(1).optional(),
   dmgModifier: z.coerce.number().min(0).max(2).default(1).optional(),
 });
+export type PierceTagType = z.infer<typeof PierceTag>;
 
 export const DebuffPreventTag = z.object({
   ...BaseAttributes,
@@ -670,6 +671,19 @@ export const VisualTag = z.object({
   description: msg("A battlefield visual effect"),
 });
 
+export const WeaknessTag = z.object({
+  ...BaseAttributes,
+  type: z.literal("weakness").default("weakness"),
+  items: z.array(z.string()).default([]),
+  jutsus: z.array(z.string()).default([]),
+  elements: z.array(z.enum(ElementNames)).default([]),
+  statTypes: z.array(z.enum(StatTypes)).default([]),
+  generalTypes: z.array(z.enum(GeneralTypes)).default([]),
+  description: msg("Extra raw damage from specific things"),
+  dmgModifier: z.coerce.number().min(1).max(5).default(1).optional(),
+});
+export type WeaknessTagType = z.infer<typeof WeaknessTag>;
+
 export const UnknownTag = z.object({
   ...BaseAttributes,
   type: z.literal("unknown").default("unknown"),
@@ -687,7 +701,7 @@ export const IncreaseMarriageSlots = z.object({
 /******************** */
 /** UNIONS OF TAGS   **/
 /******************** */
-const AllTags = z.union([
+export const AllTags = z.union([
   AbsorbTag.default({}),
   BarrierTag.default({}),
   BuffPreventTag.default({}),
@@ -733,6 +747,7 @@ const AllTags = z.union([
   SummonTag.default({}),
   UnknownTag.default({}),
   VisualTag.default({}),
+  WeaknessTag.default({}),
   IncreaseMarriageSlots.default({}),
 ]);
 export type ZodAllTags = z.infer<typeof AllTags>;
@@ -801,6 +816,7 @@ export const isNegativeUserEffect = (tag: ZodAllTags) => {
       "seal",
       "stun",
       "summonprevent",
+      "weakness",
     ].includes(tag.type)
   ) {
     return true;
@@ -869,6 +885,7 @@ export type BattleEffect = ZodAllTags & {
   longitude: number;
   latitude: number;
   barrierAbsorb: number;
+  actionId: string;
 };
 
 export type GroundEffect = BattleEffect;
@@ -989,7 +1006,7 @@ const SuperRefineJutsu = (data: JutsuValidatorType, ctx: z.RefinementCtx) => {
 /**
  * Validator specific to effects
  */
-const SuperRefineEffects = (
+export const SuperRefineEffects = (
   effects: ZodAllTags[] | ZodBloodlineTags[],
   ctx: z.RefinementCtx,
 ) => {

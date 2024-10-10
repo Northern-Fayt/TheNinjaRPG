@@ -657,7 +657,7 @@ export const profileRouter = createTRPCRouter({
     }),
   // Update nindo
   updateNindo: protectedProcedure
-    .input(mutateContentSchema)
+    .input(mutateContentSchema.extend({ userId: z.string() }))
     .output(baseServerResponse)
     .mutation(async ({ ctx, input }) => {
       // Query
@@ -665,8 +665,11 @@ export const profileRouter = createTRPCRouter({
       // Guard
       if (user.isBanned) return errorResponse("You are banned");
       if (user.isSilenced) return errorResponse("You are silenced");
+      if (ctx.userId !== input.userId && !canSeeSecretData(user.role)) {
+        return errorResponse("You can't change for other users");
+      }
       // Mutate
-      return updateNindo(ctx.drizzle, ctx.userId, input.content);
+      return updateNindo(ctx.drizzle, input.userId, input.content);
     }),
   // Insert attribute
   insertAttribute: protectedProcedure
@@ -885,17 +888,33 @@ export const profileRouter = createTRPCRouter({
       return fetchPublicUsers(ctx.drizzle, input, ctx.userId);
     }),
   // Toggle deletion of user
-  toggleDeletionTimer: protectedProcedure.mutation(async ({ ctx }) => {
-    const currentUser = await fetchUser(ctx.drizzle, ctx.userId);
-    return ctx.drizzle
-      .update(userData)
-      .set({
-        deletionAt: currentUser.deletionAt
-          ? null
-          : new Date(new Date().getTime() + 2 * 86400000),
-      })
-      .where(eq(userData.userId, ctx.userId));
-  }),
+  toggleDeletionTimer: protectedProcedure
+    .input(z.object({ userId: z.string() }))
+    .output(baseServerResponse)
+    .mutation(async ({ ctx, input }) => {
+      // Fetch
+      const [user, target] = await Promise.all([
+        fetchUser(ctx.drizzle, ctx.userId),
+        fetchUser(ctx.drizzle, input.userId),
+      ]);
+      // Guard
+      if (target.isBanned || target.isSilenced) {
+        return errorResponse("User has to serve the ban/silence first");
+      }
+      if (ctx.userId !== input.userId && !canSeeSecretData(user.role)) {
+        return errorResponse("You can't delete other users");
+      }
+      // Muate
+      await ctx.drizzle
+        .update(userData)
+        .set({
+          deletionAt: target.deletionAt
+            ? null
+            : new Date(new Date().getTime() + 2 * 86400000),
+        })
+        .where(eq(userData.userId, input.userId));
+      return { success: true, message: "Deletion timer toggled" };
+    }),
   // Delete user
   confirmDeletion: protectedProcedure
     .input(z.object({ userId: z.string() }))
@@ -919,88 +938,6 @@ export const profileRouter = createTRPCRouter({
       // Mutate
       await deleteUser(ctx.drizzle, input.userId);
       return { success: true, message: "User deleted" };
-    }),
-  // Copy user setting to Terriator - exclusive to Terriator user for debugging
-  cloneUserForDebug: protectedProcedure
-    .input(z.object({ userId: z.string() }))
-    .output(baseServerResponse)
-    .mutation(async ({ ctx, input }) => {
-      const user = await fetchUser(ctx.drizzle, ctx.userId);
-      const target = await fetchUser(ctx.drizzle, input.userId);
-      if (!user || !target) {
-        return { success: false, message: "User not found" };
-      }
-      if (user.username !== "Terriator") {
-        return { success: false, message: "You are not Terriator" };
-      }
-      if (target.username === "Terriator") {
-        return { success: false, message: "Cannot copy Terriator to Terriator" };
-      }
-      const [targetJutsus, targetItems] = await Promise.all([
-        ctx.drizzle.query.userJutsu.findMany({
-          where: eq(userJutsu.userId, input.userId),
-        }),
-        ctx.drizzle.query.userItem.findMany({
-          where: eq(userItem.userId, input.userId),
-        }),
-      ]);
-      await Promise.all([
-        ctx.drizzle.delete(userJutsu).where(eq(userJutsu.userId, user.userId)),
-        ctx.drizzle.delete(userItem).where(eq(userItem.userId, user.userId)),
-        ctx.drizzle
-          .update(userData)
-          .set({
-            curHealth: target.curHealth,
-            maxHealth: target.maxHealth,
-            curStamina: target.curStamina,
-            maxStamina: target.maxStamina,
-            curChakra: target.curChakra,
-            maxChakra: target.maxChakra,
-            money: target.money,
-            bank: target.bank,
-            experience: target.experience,
-            rank: target.rank,
-            level: target.level,
-            villageId: target.villageId,
-            bloodlineId: target.bloodlineId,
-            strength: target.strength,
-            speed: target.speed,
-            intelligence: target.intelligence,
-            willpower: target.willpower,
-            ninjutsuOffence: target.ninjutsuOffence,
-            ninjutsuDefence: target.ninjutsuDefence,
-            genjutsuOffence: target.genjutsuOffence,
-            genjutsuDefence: target.genjutsuDefence,
-            taijutsuOffence: target.taijutsuOffence,
-            taijutsuDefence: target.taijutsuDefence,
-            bukijutsuOffence: target.bukijutsuOffence,
-            bukijutsuDefence: target.bukijutsuDefence,
-            questData: target.questData,
-            sector: target.sector,
-            latitude: target.latitude,
-            longitude: target.longitude,
-          })
-          .where(eq(userData.userId, ctx.userId)),
-      ]);
-      if (targetJutsus.length > 0) {
-        await ctx.drizzle.insert(userJutsu).values(
-          targetJutsus.map((userjutsu) => ({
-            ...userjutsu,
-            userId: ctx.userId,
-            id: nanoid(),
-          })),
-        );
-      }
-      if (targetItems.length > 0) {
-        await ctx.drizzle.insert(userItem).values(
-          targetItems.map((useritem) => ({
-            ...useritem,
-            userId: ctx.userId,
-            id: nanoid(),
-          })),
-        );
-      }
-      return { success: true, message: "User copied" };
     }),
 });
 
@@ -1378,9 +1315,16 @@ export const fetchPublicUsers = async (
         ...(input.village !== undefined ? [eq(userData.villageId, input.village)] : []),
         ...(input.recruiterId ? [eq(userData.recruiterId, input.recruiterId)] : []),
         ...(input.orderBy === "Staff" ? [notInArray(userData.role, ["USER"])] : []),
-        ...(input.isAi === false
-          ? [eq(userData.isSummon, false)]
-          : [eq(userData.isAi, true)]),
+        ...(input.isAi ? [eq(userData.isAi, true)] : []),
+        ...(input.inArena && input.isAi
+          ? [eq(userData.inArena, true)]
+          : [eq(userData.inArena, false)]),
+        ...(input.isEvent && input.isAi
+          ? [eq(userData.isEvent, true)]
+          : [eq(userData.isEvent, false)]),
+        ...(input.isSummon && input.isAi
+          ? [eq(userData.isSummon, true)]
+          : [eq(userData.isSummon, false)]),
       ),
       columns: {
         userId: true,
@@ -1395,6 +1339,10 @@ export const fetchPublicUsers = async (
         reputationPointsTotal: true,
         lastIp: true,
         pvpStreak: true,
+        isSummon: true,
+        isEvent: true,
+        inArena: true,
+        isAi: true,
       },
       // If AI, also include relations information
       with: {

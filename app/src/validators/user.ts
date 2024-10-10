@@ -88,7 +88,7 @@ export const getPublicUsersSchema = z.object({
   orderBy: z.enum(["Online", "Strongest", "Weakest", "PvP", "Staff"]),
   username: z
     .string()
-    .regex(new RegExp("^[a-zA-Z0-9_]*$"), {
+    .regex(new RegExp("^[a-zA-Z0-9\\s]*$"), {
       message: "Must only contain alphanumeric characters and no spaces",
     })
     .optional(),
@@ -96,5 +96,8 @@ export const getPublicUsersSchema = z.object({
   village: z.string().optional(),
   bloodline: z.string().optional(),
   recruiterId: z.string().optional(),
+  inArena: z.boolean().optional(),
+  isEvent: z.boolean().optional(),
+  isSummon: z.boolean().optional(),
 });
 export type GetPublicUsersSchema = z.infer<typeof getPublicUsersSchema>;

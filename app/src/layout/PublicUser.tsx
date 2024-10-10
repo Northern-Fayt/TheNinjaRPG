@@ -14,6 +14,9 @@ import ReportUser from "@/layout/Report";
 import Post from "@/layout/Post";
 import ActionLogs from "@/layout/ActionLog";
 import GraphCombatLog from "@/layout/GraphCombatLog";
+import DeleteUserButton from "@/layout/DeleteUserButton";
+import { ActionSelector } from "@/layout/CombatActions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLocalStorage } from "@/hooks/localstorage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrainingSpeeds } from "@/drizzle/constants";
@@ -26,11 +29,13 @@ import {
   Settings,
   RefreshCcwDot,
   Trash2,
+  Plus,
   PersonStanding,
 } from "lucide-react";
 import { updateUserSchema } from "@/validators/user";
 import { canChangeUserRole } from "@/utils/permissions";
 import { canSeeSecretData } from "@/utils/permissions";
+import { canModifyUserBadges } from "@/utils/permissions";
 import { api } from "@/utils/api";
 import { showMutationToast } from "@/libs/toast";
 import { canChangePublicUser } from "@/validators/reports";
@@ -114,10 +119,12 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
 
   const { data: marriages } = api.marriage.getMarriedUsers.useQuery(
     { id: userId },
-    {
-      staleTime: 300000,
-    },
+    { staleTime: 300000 },
   );
+
+  const { data: badges } = api.badge.getAllNames.useQuery(undefined, {
+    staleTime: Infinity,
+  });
 
   const { data: todayPveCount } = api.profile.getUserDailyPveBattleCount.useQuery(
     { userId: userId },
@@ -146,7 +153,7 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
     },
   });
 
-  const cloneUser = api.profile.cloneUserForDebug.useMutation({
+  const cloneUser = api.staff.cloneUserForDebug.useMutation({
     onSuccess: async (data) => {
       showMutationToast(data);
       if (data.success) {
@@ -164,11 +171,22 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
     },
   });
 
-  const deleteUser = api.profile.confirmDeletion.useMutation({
+  const insertUserBadge = api.staff.insertUserBadge.useMutation({
     onSuccess: async (data) => {
       showMutationToast(data);
       if (data.success) {
         await utils.profile.getPublicUser.invalidate();
+        await utils.logs.getContentChanges.invalidate();
+      }
+    },
+  });
+
+  const removeUserBadge = api.staff.removeUserBadge.useMutation({
+    onSuccess: async (data) => {
+      showMutationToast(data);
+      if (data.success) {
+        await utils.profile.getPublicUser.invalidate();
+        await utils.logs.getContentChanges.invalidate();
       }
     },
   });
@@ -176,10 +194,6 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
   // Derived
   const canChange = isSignedIn && userData && canChangePublicUser(userData);
   const availableRoles = userData && canChangeUserRole(userData.role);
-  const isBanned = profile?.isBanned;
-  const deleteMarked = profile?.deletionAt;
-  const deleteReady = profile?.deletionAt && new Date(profile.deletionAt) < new Date();
-  const canDelete = !isBanned && deleteMarked && deleteReady;
 
   // Loaders
   if (isPendingProfile) return <Loader explanation="Fetching Public User Data" />;
@@ -243,40 +257,7 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
                   for fixing users stuck in a particular state. I.E Battle. The action
                   will be logged. Are you sure?
                 </Confirm>
-                <Confirm
-                  title="Confirm Deletion"
-                  button={
-                    <Trash2
-                      className={`h-6 w-6 cursor-pointer hover:text-orange-500 ${
-                        userData.deletionAt ? "text-red-500 animate-pulse" : ""
-                      }`}
-                    />
-                  }
-                  proceed_label={
-                    deleteMarked
-                      ? canDelete
-                        ? "Complete Deletion"
-                        : "Timer not over yet"
-                      : "Not marked for deletion"
-                  }
-                  onAccept={(e) => {
-                    e.preventDefault();
-                    if (canDelete) {
-                      deleteUser.mutate({ userId: profile.userId });
-                    }
-                  }}
-                >
-                  <span>
-                    If the user is marked for deletion, and the timer for deletion has
-                    finished, you can as staff force finish the deletion here
-                    {profile.isBanned && (
-                      <p className="font-bold py-3">
-                        NOTE: User is banned, and cannot delete your account until the
-                        ban is over!
-                      </p>
-                    )}
-                  </span>
-                </Confirm>
+                <DeleteUserButton userData={profile} />
               </>
             ) : (
               ""
@@ -478,15 +459,45 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
         </ContentBox>
       )}
       {/* USER BADGES */}
-      {showBadges && profile.badges.length > 0 && (
+      {showBadges && (
         <ContentBox
           title="Achieved Badges"
           subtitle={`Achieved through quests & help`}
           initialBreak={true}
+          topRightContent={
+            <>
+              {badges && canModifyUserBadges(userData.role) && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button className="w-full">
+                      <Plus className="h-6 w-6 mr-2" /> New
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <ActionSelector
+                      items={badges.filter(
+                        (b) => !profile.badges.some((ub) => ub.badgeId === b.id),
+                      )}
+                      labelSingles={true}
+                      onClick={(id) => {
+                        insertUserBadge.mutate({ userId: profile.userId, badgeId: id });
+                      }}
+                      showBgColor={false}
+                      roundFull={true}
+                      hideBorder={true}
+                      showLabels={true}
+                      emptyText="No badges exist yet."
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+            </>
+          }
         >
+          {profile.badges.length === 0 && <p>No badges found</p>}
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5">
             {profile.badges.map((userbadge, i) => (
-              <div key={i} className="text-center">
+              <div key={i} className="text-center relative">
                 <Image
                   src={userbadge.badge.image}
                   alt={userbadge.badge.name}
@@ -496,6 +507,12 @@ const PublicUserComponent: React.FC<PublicUserComponentProps> = ({
                 <div>
                   <div className="font-bold">{userbadge.badge.name}</div>
                 </div>
+                {canModifyUserBadges(userData.role) && (
+                  <Trash2
+                    className="absolute right-[8%] top-0 h-9 w-9 border-2 border-black cursor-pointer rounded-full bg-amber-100 fill-slate-500 p-1 hover:fill-orange-500"
+                    onClick={() => removeUserBadge.mutate(userbadge)}
+                  />
+                )}
               </div>
             ))}
           </div>

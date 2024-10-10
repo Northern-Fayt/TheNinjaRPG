@@ -3,14 +3,7 @@ import { nanoid } from "nanoid";
 import { eq, sql, gte, and, like } from "drizzle-orm";
 import { item, userItem, userData, actionLog, bloodlineRolls } from "@/drizzle/schema";
 import { bloodline } from "@/drizzle/schema";
-import {
-  ItemTypes,
-  ItemSlots,
-  ItemRarities,
-  ItemSlotTypes,
-  AttackTargets,
-  AttackMethods,
-} from "@/drizzle/constants";
+import { ItemTypes, ItemSlots } from "@/drizzle/constants";
 import { fetchUser, fetchUpdatedUser } from "@/routers/profile";
 import { fetchStructures } from "@/routers/village";
 import { fetchItemBloodlineRolls } from "@/routers/bloodline";
@@ -19,8 +12,9 @@ import { serverError, baseServerResponse, errorResponse } from "@/api/trpc";
 import { ItemValidator } from "@/libs/combat/types";
 import { canChangeContent } from "@/utils/permissions";
 import { callDiscordContent } from "@/libs/discord";
-import { effectFilters, statFilters } from "@/libs/train";
+import { effectFilters } from "@/libs/train";
 import { structureBoost } from "@/utils/village";
+import { calcItemSellingPrice } from "@/libs/item";
 import { ANBU_ITEMSHOP_DISCOUNT_PERC } from "@/drizzle/constants";
 import { nonCombatConsume } from "@/libs/item";
 import { getRandomElement } from "@/utils/array";
@@ -28,6 +22,7 @@ import { calcMaxItems } from "@/libs/item";
 import { IMG_AVATAR_DEFAULT } from "@/drizzle/constants";
 import { calculateContentDiff } from "@/utils/diff";
 import { HealTag } from "@/libs/combat/types";
+import { itemFilteringSchema } from "@/validators/item";
 import type { ItemSlot } from "@/drizzle/constants";
 import type { ZodAllTags } from "@/libs/combat/types";
 import type { DrizzleClient } from "@/server/db";
@@ -134,21 +129,9 @@ export const itemRouter = createTRPCRouter({
     }),
   getAll: publicProcedure
     .input(
-      z.object({
+      itemFilteringSchema.extend({
         cursor: z.number().nullish(),
-        name: z.string().optional(),
         limit: z.number().min(1).max(500),
-        itemType: z.enum(ItemTypes).optional(),
-        itemRarity: z.enum(ItemRarities).optional(),
-        effect: z.string().optional(),
-        stat: z.enum(statFilters).optional(),
-        minCost: z.number().default(0),
-        minRepsCost: z.number().default(0),
-        onlyInShop: z.boolean().optional(),
-        eventItems: z.boolean().optional(),
-        slot: z.enum(ItemSlotTypes).optional(),
-        target: z.enum(AttackTargets).optional(),
-        method: z.enum(AttackMethods).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -177,6 +160,9 @@ export const itemRouter = createTRPCRouter({
             ? [eq(item.isEventItem, input.eventItems)]
             : []),
           ...(input.onlyInShop ? [eq(item.inShop, true)] : []),
+          ...(input?.hidden !== undefined
+            ? [eq(item.hidden, input.hidden)]
+            : [eq(item.hidden, false)]),
           gte(item.cost, input.minCost),
           gte(item.repsCost, input.minRepsCost),
         ),
@@ -251,12 +237,7 @@ export const itemRouter = createTRPCRouter({
       if (!useritem) return errorResponse("User item not found");
       if (useritem.userId !== user.userId) return errorResponse("Not yours to sell");
       // Derived
-      const sDiscount = structureBoost("itemDiscountPerLvl", structures);
-      const aDiscount = user.anbuId ? ANBU_ITEMSHOP_DISCOUNT_PERC : 0;
-      const discount = Math.max(sDiscount + aDiscount, 50);
-      const factor = (100 - discount) / 100;
-      const isEventItem = useritem.item.isEventItem;
-      const cost = isEventItem ? 0 : useritem.item.cost * useritem.quantity * factor;
+      const cost = calcItemSellingPrice(user, useritem, structures);
       // Mutate
       await Promise.all([
         ctx.drizzle.delete(userItem).where(eq(userItem.id, input.userItemId)),

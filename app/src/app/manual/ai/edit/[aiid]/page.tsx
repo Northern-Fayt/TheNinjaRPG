@@ -3,18 +3,26 @@
 import ContentBox from "@/layout/ContentBox";
 import Loader from "@/layout/Loader";
 import AiProfileEdit from "@/layout/AiProfileEdit";
+import StatusBar from "@/layout/StatusBar";
+import NindoChange from "@/layout/NindoChange";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { EditContent } from "@/layout/EditContent";
+import { EffectFormWrapper } from "@/layout/EditContent";
+import { FilePlus, FileMinus } from "lucide-react";
 import { api } from "@/utils/api";
+import { tagTypes } from "@/libs/combat/types";
+import { WeaknessTag } from "@/libs/combat/types";
 import { useRequiredUserData } from "@/utils/UserContext";
 import { setNullsToEmptyStrings } from "@/utils/typeutils";
 import { canChangeContent } from "@/utils/permissions";
 import { insertUserDataSchema } from "@/drizzle/schema";
 import { useAiEditForm } from "@/libs/ais";
+import { showMutationToast } from "@/libs/toast";
 import type { AiWithRelations } from "@/routers/profile";
 
 export default function ManualAisEdit({ params }: { params: { aiid: string } }) {
+  // State
   const aiId = params.aiid;
   const router = useRouter();
   const { data: userData } = useRequiredUserData();
@@ -50,10 +58,46 @@ interface SingleEditUserProps {
 }
 
 const SingleEditUser: React.FC<SingleEditUserProps> = (props) => {
+  // tRPC utility
+  const utils = api.useUtils();
+
   // Form handling
-  const { loading, processedUser, form, formData, handleUserSubmit } = useAiEditForm(
-    props.user,
-    props.refetch,
+  const {
+    loading,
+    effects,
+    processedUser,
+    form,
+    formData,
+    setEffects,
+    handleUserSubmit,
+  } = useAiEditForm(props.user);
+
+  // Mutations
+  const { mutate: updateNindo, isPending: isUpdating } =
+    api.profile.updateNindo.useMutation({
+      onSuccess: async (data) => {
+        showMutationToast(data);
+        if (data.success) {
+          await utils.profile.getNindo.invalidate();
+        }
+      },
+    });
+
+  // Icon for adding tag
+  const AddTagIcon = (
+    <FilePlus
+      className="h-6 w-6 cursor-pointer hover:text-orange-500"
+      onClick={() => {
+        setEffects([
+          ...effects,
+          WeaknessTag.parse({
+            rounds: 100,
+            residualModifier: 0,
+            dmgModifier: 1,
+          }),
+        ]);
+      }}
+    />
   );
 
   // Show panel controls
@@ -66,20 +110,103 @@ const SingleEditUser: React.FC<SingleEditUserProps> = (props) => {
       >
         {!processedUser && <p>Could not find this AI</p>}
         {!loading && processedUser && (
-          <EditContent
-            schema={insertUserDataSchema}
-            form={form}
-            formData={formData}
-            showSubmit={form.formState.isDirty}
-            buttonTxt="Save to Database"
-            type="ai"
-            allowImageUpload={true}
-            onAccept={handleUserSubmit}
-          />
+          <>
+            <StatusBar
+              title="HP"
+              tooltip="Health"
+              color="bg-red-500"
+              showText={true}
+              status={processedUser.status}
+              current={processedUser.curHealth}
+              total={processedUser.maxHealth}
+            />
+            <StatusBar
+              title="CP"
+              tooltip="Chakra"
+              color="bg-blue-500"
+              showText={true}
+              status={processedUser.status}
+              current={processedUser.curChakra}
+              total={processedUser.maxChakra}
+            />
+            <StatusBar
+              title="SP"
+              tooltip="Stamina"
+              color="bg-green-500"
+              showText={true}
+              status={processedUser.status}
+              current={processedUser.curStamina}
+              total={processedUser.maxStamina}
+            />
+            <EditContent
+              schema={insertUserDataSchema}
+              form={form}
+              formData={formData}
+              showSubmit={form.formState.isDirty}
+              buttonTxt="Save to Database"
+              type="ai"
+              allowImageUpload={true}
+              onAccept={handleUserSubmit}
+            />
+          </>
         )}
       </ContentBox>
 
+      {effects.length === 0 && (
+        <ContentBox
+          title="AI Tags"
+          initialBreak={true}
+          topRightContent={<div className="flex flex-row">{AddTagIcon}</div>}
+        >
+          Please add effects to this item
+        </ContentBox>
+      )}
+      {effects.map((tag, i) => {
+        return (
+          <ContentBox
+            key={`${tag.type}-${i}`}
+            title={`AI Tag #${i + 1}`}
+            subtitle="Control battle effects"
+            initialBreak={true}
+            topRightContent={
+              <div className="flex flex-row">
+                {AddTagIcon}
+                <FileMinus
+                  className="h-6 w-6 cursor-pointer hover:text-orange-500"
+                  onClick={() => {
+                    const newEffects = [...effects];
+                    newEffects.splice(i, 1);
+                    setEffects(newEffects);
+                  }}
+                />
+              </div>
+            }
+          >
+            <EffectFormWrapper
+              idx={i}
+              type="item"
+              tag={tag}
+              availableTags={tagTypes}
+              effects={effects}
+              setEffects={setEffects}
+            />
+          </ContentBox>
+        );
+      })}
+
       <AiProfileEdit userData={props.user} />
+
+      <ContentBox title="Nindo" subtitle="Edit the AI Nindo" initialBreak>
+        {isUpdating && <Loader explanation="Updating..." />}
+        {!isUpdating && (
+          <NindoChange
+            userId={processedUser.userId}
+            onChange={(data) =>
+              updateNindo({ userId: processedUser.userId, content: data.content })
+            }
+          />
+        )}
+      </ContentBox>
     </>
   );
 };

@@ -23,6 +23,7 @@ import * as consts from "@/drizzle/constants";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { AllTags, SuperRefineEffects } from "@/libs/combat/types";
 import type { ZodAllTags } from "@/libs/combat/types";
 import type { QuestContentType } from "@/validators/objectives";
 import type { QuestTrackerType } from "@/validators/objectives";
@@ -1450,6 +1451,8 @@ export const userData = mysqlTable(
     taijutsuDefence: double("taijutsuDefence").default(10).notNull(),
     bukijutsuDefence: double("bukijutsuDefence").default(10).notNull(),
     bukijutsuOffence: double("bukijutsuOffence").default(10).notNull(),
+    statsMultiplier: double("statsMultiplier").default(1).notNull(),
+    poolsMultiplier: double("poolsMultiplier").default(1).notNull(),
     reputationPoints: float("reputationPoints").default(5).notNull(),
     primaryElement: mysqlEnum("primaryElement", consts.ElementNames),
     secondaryElement: mysqlEnum("secondaryElement", consts.ElementNames),
@@ -1485,6 +1488,7 @@ export const userData = mysqlTable(
     battleId: varchar("battleId", { length: 191 }),
     isAi: boolean("isAi").default(false).notNull(),
     isSummon: boolean("isSummon").default(false).notNull(),
+    isEvent: boolean("isEvent").default(false).notNull(),
     inArena: boolean("inArena").default(false).notNull(),
     inboxNews: int("inboxNews").default(0).notNull(),
     regenAt: datetime("regenAt", { mode: "date", fsp: 3 })
@@ -1533,6 +1537,7 @@ export const userData = mysqlTable(
     customTitle: varchar("customTitle", { length: 191 }).default("").notNull(),
     marriageSlots: int("marriageSlots", { unsigned: true }).default(1).notNull(),
     aiProfileId: varchar("aiProfileId", { length: 191 }),
+    effects: json("effects").$type<ZodAllTags[]>().default([]).notNull(),
   },
   (table) => {
     return {
@@ -1580,11 +1585,14 @@ export const insertUserDataSchema = createInsertSchema(userData)
       taijutsuDefence: z.coerce.number().min(10).max(consts.MAX_STATS_CAP),
       bukijutsuOffence: z.coerce.number().min(10).max(consts.MAX_STATS_CAP),
       bukijutsuDefence: z.coerce.number().min(10).max(consts.MAX_STATS_CAP),
+      statsMultiplier: z.coerce.number().min(1).max(10),
+      poolsMultiplier: z.coerce.number().min(1).max(10),
       strength: z.coerce.number().min(10).max(consts.MAX_GENS_CAP),
       intelligence: z.coerce.number().min(10).max(consts.MAX_GENS_CAP),
       willpower: z.coerce.number().min(10).max(consts.MAX_GENS_CAP),
       speed: z.coerce.number().min(10).max(consts.MAX_GENS_CAP),
       isSummon: z.coerce.boolean(),
+      effects: z.array(AllTags).superRefine(SuperRefineEffects),
     }),
   );
 export type InsertUserDataSchema = z.infer<typeof insertUserDataSchema>;

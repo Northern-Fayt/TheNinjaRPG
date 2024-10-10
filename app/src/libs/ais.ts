@@ -9,6 +9,7 @@ import type { InsertUserDataSchema } from "@/drizzle/schema";
 import type { UserData } from "@/drizzle/schema";
 import type { UserJutsu } from "@/drizzle/schema";
 import type { UserItem } from "@/drizzle/schema";
+import type { ZodAllTags } from "@/libs/combat/types";
 import type { FormEntry } from "@/layout/EditContent";
 
 /**
@@ -17,7 +18,6 @@ import type { FormEntry } from "@/layout/EditContent";
  */
 export const useAiEditForm = (
   user: UserData & { jutsus: UserJutsu[]; items: UserItem[] },
-  refetch: () => void,
 ) => {
   // Process data for form
   const processedUser = {
@@ -45,12 +45,21 @@ export const useAiEditForm = (
   const { data: lines, isPending: l3 } = api.bloodline.getAllNames.useQuery(undefined, {
     staleTime: Infinity,
   });
+  const { data: clans, isPending: l5 } = api.clan.getAllNames.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+  const { data: anbus, isPending: l6 } = api.anbu.getAllNames.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  // tRPC utility
+  const utils = api.useUtils();
 
   // Mutation for updating item
   const { mutate: updateAi, isPending: l4 } = api.profile.updateAi.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       showMutationToast(data);
-      refetch();
+      await utils.profile.getAi.invalidate();
     },
   });
 
@@ -67,9 +76,15 @@ export const useAiEditForm = (
 
   // Watch for changes to avatar
   const avatarUrl = form.watch("avatar");
+  const effects = form.watch("effects");
+
+  // Handle updating of effects
+  const setEffects = (newEffects: ZodAllTags[]) => {
+    form.setValue("effects", newEffects, { shouldDirty: true });
+  };
 
   // Are we loading data
-  const loading = l1 || l2 || l3 || l4;
+  const loading = l1 || l2 || l3 || l4 || l5 || l6;
 
   // Object for form values
   const formData: FormEntry<keyof InsertUserDataSchema | "jutsus" | "items">[] = [
@@ -80,6 +95,12 @@ export const useAiEditForm = (
     { id: "level", type: "number" },
     { id: "regeneration", type: "number" },
     { id: "rank", type: "str_array", values: UserRanks },
+    {
+      id: "bloodlineId",
+      type: "db_values",
+      values: lines,
+      resetButton: true,
+    },
     { id: "ninjutsuOffence", label: "Nin Off Focus", type: "number" },
     { id: "ninjutsuDefence", label: "Nin Def Focus", type: "number" },
     { id: "genjutsuOffence", label: "Gen Off Focus", type: "number" },
@@ -88,6 +109,8 @@ export const useAiEditForm = (
     { id: "taijutsuDefence", label: "Tai Def Focus", type: "number" },
     { id: "bukijutsuOffence", label: "Buku Off Focus", type: "number" },
     { id: "bukijutsuDefence", label: "Buki Def Focus", type: "number" },
+    { id: "statsMultiplier", type: "number" },
+    { id: "poolsMultiplier", type: "number" },
     { id: "strength", label: "Strength Focus", type: "number" },
     { id: "intelligence", label: "Intelligence Focus", type: "number" },
     { id: "willpower", label: "Willpower Focus", type: "number" },
@@ -107,10 +130,16 @@ export const useAiEditForm = (
       resetButton: true,
     },
     {
-      id: "bloodlineId",
+      id: "anbuId",
+      label: "Anbu Squad",
       type: "db_values",
-      values: lines,
-      resetButton: true,
+      values: anbus,
+    },
+    {
+      id: "clanId",
+      label: "Clan",
+      type: "db_values",
+      values: clans,
     },
     {
       id: "jutsus",
@@ -128,5 +157,13 @@ export const useAiEditForm = (
     },
   ];
 
-  return { processedUser, loading, form, formData, handleUserSubmit };
+  return {
+    processedUser,
+    effects,
+    loading,
+    form,
+    formData,
+    setEffects,
+    handleUserSubmit,
+  };
 };

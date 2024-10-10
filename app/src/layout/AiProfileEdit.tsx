@@ -5,7 +5,7 @@ import ContentBox from "@/layout/ContentBox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Accordion from "@/layout/Accordion";
-import { FilePlus, Trash, Save } from "lucide-react";
+import { FilePlus, Trash2, Save } from "lucide-react";
 import { SquareArrowUp, SquareArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,12 @@ import { showMutationToast } from "@/libs/toast";
 import { api } from "@/utils/api";
 import { getConditionSchema, getActionSchema } from "@/validators/ai";
 import { AiActionTypes, AiConditionTypes } from "@/validators/ai";
-import { ActionMoveTowardsOpponent } from "@/validators/ai";
+import {
+  AiRule,
+  ActionMoveTowardsOpponent,
+  ActionWithEffectHighestPower,
+  ConditionDistanceHigherThan,
+} from "@/validators/ai";
 import { AvailableTargets } from "@/validators/ai";
 import { tagTypes } from "@/libs/combat/types";
 import type { AiRuleType, ZodAllAiCondition } from "@/validators/ai";
@@ -38,6 +43,7 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
   const [activeElement, setActiveElement] = useState<string>("");
   const aiProfileId = props.userData.aiProfileId || "Default";
   const utils = api.useUtils();
+  const isDefault = aiProfileId === "Default";
 
   // Data
   const { data: profile } = api.ai.getAiProfile.useQuery(
@@ -69,10 +75,33 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
   // Insert rules from database into client state
   useEffect(() => {
     if (profile) {
+      // If the last two rules are not move -> attack, add a default one
+      if (isDefault) {
+        if (
+          profile.rules.at(-1)?.action?.type !== "use_highest_power_action" ||
+          profile.rules.at(-1)?.conditions.length !== 0 ||
+          profile.rules.at(-2)?.action?.type !== "move_towards_opponent" ||
+          profile.rules.at(-2)?.conditions?.[0]?.type !== "distance_higher_than" ||
+          profile.rules.at(-2)?.conditions?.[0]?.value !== 2
+        ) {
+          profile.rules.push(
+            AiRule.parse({
+              conditions: [ConditionDistanceHigherThan.parse({ value: 2 })],
+              action: ActionMoveTowardsOpponent.parse({}),
+            }),
+          );
+          profile.rules.push(
+            AiRule.parse({
+              conditions: [],
+              action: ActionWithEffectHighestPower.parse({ effect: "damage" }),
+            }),
+          );
+        }
+      }
       setRules(profile.rules);
       setActiveElement(`Rule ${profile.rules.length}`);
     }
-  }, [profile]);
+  }, [profile, isDefault]);
 
   // Convenience method for updating rules
   const updateCondition = (
@@ -107,7 +136,7 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
     <ContentBox
       title="AI Profile"
       subtitle={
-        aiProfileId === "Default"
+        isDefault
           ? "Default AI Profile [Used by Many]"
           : "Custom AI Profile [Only this AI]"
       }
@@ -119,7 +148,7 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
         ) : (
           <NavTabs
             id="profileSelection"
-            current={aiProfileId === "Default" ? "Default" : "Custom"}
+            current={isDefault ? "Default" : "Custom"}
             options={availableTabs}
             onChange={() => toggleAiProfile({ aiId: props.userData.userId })}
           />
@@ -129,43 +158,58 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
       {rules.map((rule, i) => {
         const currentActionType = rule.action.type;
         const actionSchema = getActionSchema(currentActionType);
+        const isLastTwo = i >= rules.length - 2;
+        const isLastThree = i >= rules.length - 3;
         return (
           <Accordion
             key={`rule-${i}`}
+            className={isLastTwo ? "opacity-50" : ""}
             title={`Rule ${i + 1}`}
             titlePostfix={`: ${rule.conditions.map((c) => c.type).join(", ")} -> ${rule.action.type}`}
             selectedTitle={activeElement}
             onClick={setActiveElement}
             options={
               <>
-                <SquareArrowUp
-                  className="w-6 h-6 hover:cursor-pointer hover:text-orange-500"
-                  onClick={() => {
-                    setRules((prevRules) => {
-                      if (i < 1) return prevRules;
-                      const newRules = [...prevRules];
-                      const a = newRules[i] as AiRuleType;
-                      const b = newRules[i - 1] as AiRuleType;
-                      newRules[i] = b;
-                      newRules[i - 1] = a;
-                      return newRules;
-                    });
-                  }}
-                />
-                <SquareArrowDown
-                  className="w-6 h-6 hover:cursor-pointer hover:text-orange-500"
-                  onClick={() => {
-                    setRules((prevRules) => {
-                      if (i + 1 >= prevRules.length) return prevRules;
-                      const newRules = [...prevRules];
-                      const a = newRules[i] as AiRuleType;
-                      const b = newRules[i + 1] as AiRuleType;
-                      newRules[i] = b;
-                      newRules[i + 1] = a;
-                      return newRules;
-                    });
-                  }}
-                />
+                {isDefault && !isLastTwo && (
+                  <SquareArrowUp
+                    className="w-6 h-6 hover:cursor-pointer hover:text-orange-500"
+                    onClick={() => {
+                      setRules((prevRules) => {
+                        if (i < 1) return prevRules;
+                        const newRules = [...prevRules];
+                        const a = newRules[i] as AiRuleType;
+                        const b = newRules[i - 1] as AiRuleType;
+                        newRules[i] = b;
+                        newRules[i - 1] = a;
+                        return newRules;
+                      });
+                    }}
+                  />
+                )}
+                {isDefault && !isLastThree && (
+                  <SquareArrowDown
+                    className="w-6 h-6 hover:cursor-pointer hover:text-orange-500"
+                    onClick={() => {
+                      setRules((prevRules) => {
+                        if (i + 1 >= prevRules.length) return prevRules;
+                        const newRules = [...prevRules];
+                        const a = newRules[i] as AiRuleType;
+                        const b = newRules[i + 1] as AiRuleType;
+                        newRules[i] = b;
+                        newRules[i + 1] = a;
+                        return newRules;
+                      });
+                    }}
+                  />
+                )}
+                {isDefault && !isLastTwo && (
+                  <Trash2
+                    className="w-6 h-6 hover:cursor-pointer hover:text-orange-500"
+                    onClick={() => {
+                      setRules((prevRules) => prevRules.filter((_, j) => j !== i));
+                    }}
+                  />
+                )}
               </>
             }
           >
@@ -206,7 +250,7 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
                   >
                     <b>{condition.type}</b>
                     <i>{condition.description}</i>
-                    <Trash
+                    <Trash2
                       className="absolute top-2 right-2 w-6 h-6 hover:cursor-pointer hover:text-orange-500"
                       onClick={() => {
                         setRules((prevRules) =>
@@ -429,14 +473,14 @@ const AiProfileEdit: React.FC<AiProfileEditProps> = (props) => {
           <Button
             onClick={() => {
               setRules((prevRules) => [
-                ...prevRules,
                 {
                   conditions: [] as ZodAllAiCondition[],
                   action: ActionMoveTowardsOpponent.parse({}),
                   priority: 0,
                 } as AiRuleType,
+                ...prevRules,
               ]);
-              setActiveElement(`Rule ${rules.length + 1}`);
+              setActiveElement(`Rule ${1}`);
             }}
           >
             <FilePlus className="h-6 w-6 mr-2" /> Add Rule

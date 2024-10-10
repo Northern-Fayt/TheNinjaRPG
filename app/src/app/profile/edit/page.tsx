@@ -9,12 +9,12 @@ import Confirm from "@/layout/Confirm";
 import ContentBox from "@/layout/ContentBox";
 import Loader from "@/layout/Loader";
 import Accordion from "@/layout/Accordion";
-import RichInput from "@/layout/RichInput";
 import AvatarImage from "@/layout/Avatar";
 import Modal from "@/layout/Modal";
 import UserBlacklistControl from "@/layout/UserBlacklistControl";
 import DistributeStatsForm from "@/layout/StatsDistributionForm";
 import ItemWithEffects from "@/layout/ItemWithEffects";
+import NindoChange from "@/layout/NindoChange";
 import {
   Form,
   FormControl,
@@ -44,7 +44,6 @@ import {
 } from "lucide-react";
 import { attributes, getSearchValidator } from "@/validators/register";
 import { colors, skin_colors } from "@/validators/register";
-import { mutateContentSchema } from "@/validators/comments";
 import { useRequiredUserData } from "@/utils/UserContext";
 import { api } from "@/utils/api";
 import { useUserSearch } from "@/utils/search";
@@ -64,7 +63,6 @@ import { canSwapBloodline } from "@/utils/permissions";
 import { useInfinitePagination } from "@/libs/pagination";
 import { capitalizeFirstLetter } from "@/utils/sanitize";
 import type { Bloodline, Village } from "@/drizzle/schema";
-import type { MutateContentSchema } from "@/validators/comments";
 import UserSearchSelect from "@/layout/UserSearchSelect";
 import type { BaseServerResponse } from "@/server/api/trpc";
 import UserRequestSystem from "@/layout/UserRequestSystem";
@@ -127,7 +125,7 @@ export default function EditProfile() {
           unselectedSubtitle="Your personal way of the ninja"
           onClick={setActiveElement}
         >
-          <NindoChange />
+          <OwnNindoChange />
         </Accordion>
         <Accordion
           title="Marriage"
@@ -979,57 +977,29 @@ const AttributeChange: React.FC = () => {
 /**
  * Nindo change component
  */
-const NindoChange: React.FC = () => {
+const OwnNindoChange: React.FC = () => {
   // State
   const { data: userData } = useRequiredUserData();
-
-  // Queries
-  const { data, refetch, isPending } = api.profile.getNindo.useQuery(
-    { userId: userData?.userId as string },
-    { enabled: !!userData, staleTime: Infinity },
-  );
+  const utils = api.useUtils();
 
   // Mutations
   const { mutate, isPending: isUpdating } = api.profile.updateNindo.useMutation({
     onSuccess: async (data) => {
       showMutationToast(data);
       if (data.success) {
-        await refetch();
+        await utils.profile.getNindo.invalidate();
       }
     },
   });
 
-  // Form control
-  const {
-    handleSubmit,
-    reset,
-    control,
-    formState: { errors },
-  } = useForm<MutateContentSchema>({
-    defaultValues: { content: data },
-    resolver: zodResolver(mutateContentSchema),
-  });
-
-  // Handling submit
-  const onSubmit = handleSubmit((data) => {
-    mutate(data);
-    reset();
-  });
-
   if (isUpdating) return <Loader explanation="Updating nindo..." />;
-  if (isPending) return <Loader explanation="Loading nindo..." />;
+  if (!userData) return <Loader explanation="Loading profile..." />;
 
   return (
-    <form onSubmit={onSubmit}>
-      <RichInput
-        id="content"
-        height="200"
-        placeholder={data}
-        control={control}
-        onSubmit={onSubmit}
-        error={errors.content?.message}
-      />
-    </form>
+    <NindoChange
+      userId={userData.userId}
+      onChange={(data) => mutate({ userId: userData.userId, content: data.content })}
+    />
   );
 };
 
