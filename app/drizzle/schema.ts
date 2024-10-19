@@ -1209,7 +1209,7 @@ export const userAssociationRelations = relations(userAssociation, ({ one }) => 
 export const battlePyramid = mysqlTable("BattlePyramid", {
   id: varchar("id", { length: 191 }).primaryKey().notNull(),
   name: varchar("name", { length: 191 }).notNull(),
-  tierCount: smallint("tierCount", { unsigned: true }).default(10).notNull(),
+  tiersAndFloors: json("tiersAndFloors").$type<AiRuleType[]>().notNull(),
   isEnabled: boolean("isEnabled").default(false).notNull(),
   isArchived: boolean("isArchived").default(false).notNull(),
   minRank: mysqlEnum("minRank", consts.UserRanks),
@@ -1300,6 +1300,7 @@ export const aiAugment = mysqlTable(
   {
     id: varchar("id", { length: 191 }).primaryKey().notNull(),
     userId: varchar("userId", { length: 191 }).notNull(),
+    name: varchar("name", { length: 191 }).notNull(),
     statTemplateId: varchar("statTemplateId", { length: 191 }),
     aiProfileId: varchar("aiProfileId", { length: 191 }),
     aiType: mysqlEnum("aiType", consts.BattleTypes).notNull(),

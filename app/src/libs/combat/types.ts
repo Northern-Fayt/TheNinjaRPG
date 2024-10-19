@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   AttackMethods,
   AttackTargets,
+  BattleTypes,
   ItemRarities,
   OffenceTypes,
   ScalingTypes,
@@ -1232,6 +1233,16 @@ export const createStatTemplateSchema = () => {
 
 export const statTemplateSchema = createStatTemplateSchema();
 export type StatTemplateType = z.infer<typeof statTemplateSchema>;
+
+export const aiAugmentSchema = z.object({
+  id: z.string().max(191).default(""),
+  userId: z.string().max(191),
+  name: z.string().max(191),
+  statTemplateId: z.string().max(191).optional(),
+  aiProfileId: z.string().max(191).optional(),
+  aiType: z.enum(BattleTypes).default("PYRAMID"),
+});
+export type aiAugmentSchema = z.infer<typeof aiAugmentSchema>;
 
 export const actSchema = z.object({
   power: z.coerce.number().min(1).max(100).default(1),

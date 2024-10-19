@@ -50,6 +50,7 @@ import {
   SelectStatTemplate,
 } from "@/layout/Staff/Content/StatTemplateCreator";
 import Accordion from "@/layout/Accordion";
+import { AiAugmentCreator } from "@/layout/Staff/Content/AiAugment";
 
 export default function Staff() {
   // State management
@@ -106,16 +107,16 @@ export default function Staff() {
               unselectedSubtitle="Create or edit battle pyramids"
               onClick={setActiveElement}
             >
-              <div></div>
+              <AiAugmentCreator />
             </Accordion>
 
             <Accordion
-              title="Ai Augments"
+              title="AI Augments"
               selectedTitle={activeElement}
               unselectedSubtitle="Create or edit ai augments"
               onClick={setActiveElement}
             >
-              <div></div>
+              <AiAugmentCreator />
             </Accordion>
           </div>
         )}

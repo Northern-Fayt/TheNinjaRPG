@@ -2,7 +2,15 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { baseServerResponse, errorResponse } from "@/server/api/trpc";
 import { fetchBadge } from "@/routers/badge";
 import { eq, and } from "drizzle-orm";
-import { actionLog, statTemplate, userData, userItem, userJutsu, userBadge } from "@/drizzle/schema";
+import {
+  actionLog,
+  statTemplate,
+  userData,
+  userItem,
+  userJutsu,
+  userBadge,
+  aiAugment,
+} from "@/drizzle/schema";
 import { fetchUser } from "@/routers/profile";
 import { getServerPusher, updateUserOnMap } from "@/libs/pusher";
 import { z } from "zod";
@@ -10,7 +18,11 @@ import { nanoid } from "nanoid";
 import { canUnstuckVillage, canModifyUserBadges } from "@/utils/permissions";
 import type { inferRouterOutputs } from "@trpc/server";
 import { MAX_GENS_CAP, MAX_STATS_CAP, type UserStatus } from "@/drizzle/constants";
-import { statTemplateSchema, StatTemplateType } from "@/libs/combat/types";
+import {
+  aiAugmentSchema,
+  statTemplateSchema,
+  StatTemplateType,
+} from "@/libs/combat/types";
 import { DrizzleClient } from "@/server/db";
 import { round } from "@/utils/math";
 
@@ -270,6 +282,17 @@ export const staffRouter = createTRPCRouter({
       // Return the fetched stat templates
       return statTemplates;
     }),
+  fetchAllAiAugements: protectedProcedure
+    .output(z.array(aiAugmentSchema))
+    .query(async ({ ctx }) => {
+      // Fetch all stat templates
+      const aiAugements = await ctx.drizzle.query.aiAugment
+        .findMany()
+        .then((augments) => augments.map((augment) => aiAugmentSchema.parse(augment)));
+
+      // Return the fetched stat templates
+      return aiAugements;
+    }),
 });
 
 export const fetchStatTemplate = async (
@@ -290,7 +313,6 @@ const calcStatTemplateTotal = (stats: any): number => {
       .reduce((acc, val) => acc + val, 0),
     5,
   );
-  console.log("result", result);
   return result;
 };
 

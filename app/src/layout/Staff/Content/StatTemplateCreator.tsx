@@ -8,21 +8,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import ContentBox from "@/layout/ContentBox";
-import {
-  createStatTemplateSchema,
-  statTemplateSchema,
-  StatTemplateType,
-} from "@/libs/combat/types";
+import { statTemplateSchema, StatTemplateType } from "@/libs/combat/types";
 import { showMutationToast } from "@/libs/toast";
 import { api } from "@/utils/api";
-import { useRequiredUserData } from "@/utils/UserContext";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Swords } from "lucide-react";
 import Loader from "@/layout/Loader";
-import { useRouter } from "next/router";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import {
   Select,
   SelectContent,
