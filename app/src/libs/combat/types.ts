@@ -10,7 +10,6 @@ import {
 import { ItemSlotTypes, ItemTypes, JutsuTypes } from "@/drizzle/constants";
 import { LetterRanks, UserRanks, WeaponTypes } from "@/drizzle/constants";
 import { ElementNames } from "@/drizzle/constants";
-import { combatAssetsNames } from "@/libs//travel/constants";
 import { StatTypes, GeneralTypes, PoolTypes } from "@/drizzle/constants";
 import { MAX_STATS_CAP, MAX_GENS_CAP, USER_CAPS } from "@/drizzle/constants";
 import type { StatType, GeneralType, PoolType, ElementName } from "@/drizzle/constants";
@@ -31,6 +30,10 @@ export type BattleUserState = UserWithRelations & {
     jutsu: Jutsu;
     lastUsedRound: number;
   })[];
+  basicActions: {
+    id: string;
+    lastUsedRound: number;
+  }[];
   items: (UserItem & {
     item: Item;
     lastUsedRound: number;
@@ -190,29 +193,6 @@ export type Consequence = {
 };
 
 /**
- * Animation Visuals
- */
-export const Animations = new Map<string, { frames: number; speed: number }>();
-Animations.set("hit", { frames: 4, speed: 50 });
-Animations.set("smoke", { frames: 9, speed: 50 });
-Animations.set("fire", { frames: 6, speed: 50 });
-Animations.set("heal", { frames: 20, speed: 50 });
-Animations.set("explosion", { frames: 10, speed: 50 });
-Animations.set("rising_smoke", { frames: 14, speed: 50 });
-
-export const animationNames = [
-  "",
-  "hit",
-  "smoke",
-  "fire",
-  "heal",
-  "explosion",
-  "rising_smoke",
-] as const;
-
-export type AnimationName = (typeof animationNames)[number];
-
-/**
  * Convenience method for a string with a default value
  */
 const msg = (defaultString: string) => {
@@ -251,10 +231,10 @@ const type = (defaultString: string) => {
 const BaseTagTargets = ["INHERIT", "SELF"] as const;
 const BaseAttributes = {
   // Visual controls
-  staticAssetPath: z.enum(combatAssetsNames).default(""),
-  staticAnimation: z.enum(animationNames).default(""),
-  appearAnimation: z.enum(animationNames).default(""),
-  disappearAnimation: z.enum(animationNames).default(""),
+  staticAssetPath: z.string().default(""),
+  staticAnimation: z.string().default(""),
+  appearAnimation: z.string().default(""),
+  disappearAnimation: z.string().default(""),
   // Timing controls
   rounds: z.coerce.number().int().min(0).max(100).optional(),
   timeTracker: z.record(z.string(), z.coerce.number()).optional(),
@@ -507,7 +487,7 @@ export const HealTag = z.object({
   ...PoolAttributes,
   type: z.literal("heal").default("heal"),
   rounds: z.coerce.number().int().min(0).max(100).default(0),
-  description: msg("Heals the target"),
+  description: msg("Heals themselves or others"),
   calculation: z.enum(["static", "percentage"]).default("percentage"),
 });
 

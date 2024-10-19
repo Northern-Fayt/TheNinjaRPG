@@ -37,8 +37,6 @@ import {
 } from "@/components/ui/form";
 import type { Path, PathValue } from "react-hook-form";
 import type { AllObjectivesType } from "@/validators/objectives";
-import type { CombatAssetName } from "@/libs//travel/constants";
-import type { AnimationName } from "@/libs/combat/types";
 import type { ZodAllTags } from "@/libs/combat/types";
 import type { FieldValues } from "react-hook-form";
 import type { UseFormReturn } from "react-hook-form";
@@ -55,11 +53,16 @@ export type FormEntry<K> = {
   | { type: "date" }
   | { type: "number" }
   | { type: "boolean" }
-  | { type: "db_values"; values: FormDbValue[] | undefined; multiple?: boolean }
   | { type: "str_array"; values: readonly string[]; multiple?: boolean }
-  | { type: "animation_array"; values: readonly string[]; current: AnimationName }
-  | { type: "statics_array"; values: readonly string[]; current: CombatAssetName }
+  | { type: "animation_array"; values: readonly string[] }
+  | { type: "statics_array"; values: readonly string[] }
   | { type: "avatar"; href?: string | null }
+  | {
+      type: "db_values";
+      values: FormDbValue[] | undefined;
+      multiple?: boolean;
+      current?: string;
+    }
 );
 
 interface EditContentProps<T, K, S extends FieldValues> {
@@ -335,20 +338,14 @@ export const EditContent = <
                     </Button>
                   )}
                   {"current" in formEntry && formEntry.current && (
-                    <div className="w-12 ml-1">
-                      {formEntry.current && (
-                        <Image
-                          src={
-                            type === "animation_array"
-                              ? `/animations/${formEntry.current}.gif`
-                              : `/combat/staticAssets/${formEntry.current}.png`
-                          }
-                          alt={id}
-                          width={100}
-                          height={100}
-                          priority
-                        />
-                      )}
+                    <div className="w-12 ml-1 h-12 overflow-y-auto">
+                      <Image
+                        src={formEntry.current}
+                        alt={id}
+                        width={100}
+                        height={100}
+                        priority
+                      />
                     </div>
                   )}
                 </div>
@@ -382,18 +379,17 @@ export const EditContent = <
                         if (prompt && !load) {
                           // Different qualifiers for different content types
                           if (props.type === "quest") {
-                            prompt +=
-                              ", epic composition, cinematic, vibrant background, by greg rutkowski and thomas kinkade, Trending on artstation, 8k, hyperrealistic, extremely detailed";
+                            prompt = `Epic composition, cinematic ${prompt}, vibrant background, pixel art evoking the charm of 8-bit/16-bit era games with modern shading techniques, Trending on artstation, 8k, Japanese inspiration, extremely detailed.`;
                           } else if (props.type === "item") {
-                            prompt = `Miniature Icon Object for Videogame User Interface, ${prompt}, white background, concept art design, Ubisoft Inspiration, WoW Style Icon, MOORPG Items, Profesional Videogame Design, Indi Studio, High Quality, 4k, Photoshop.`;
+                            prompt = `Miniature Icon Object for Videogame User Interface, ${prompt}, white background, concept art design, Japanese inspiration, pixel art evoking the charm of 8-bit/16-bit era games with modern shading techniques, MOORPG Items, professional videogame Design, Indi Studio, High Quality, 4k, Photoshop.`;
                           } else if (props.type === "badge") {
-                            prompt = `${prompt}, concept art design, Ubisoft Inspiration, Profesional Videogame Design, High Quality, 4k, Photoshop.`;
+                            prompt = `${prompt} badge Japanese inspiration, white background, pixel art evoking the charm of 8-bit/16-bit era games with modern shading techniques, professional videogame Design, High Quality, 4k, Photoshop.`;
                           } else if (props.type === "jutsu") {
-                            prompt += `, epic composition, cinematic, fantasy, trending on artstation, extremely detailed`;
+                            prompt = `epic composition, symbolic representing the action: ${prompt},Japanese inspiration, fantasy pixel art evoking the charm of 8-bit/16-bit era games with modern shading techniques, trending on artstation, extremely detailed.`;
                           } else if (props.type === "bloodline") {
-                            prompt += `, epic composition, cinematic, fantasy, trending on artstation, extremely detailed`;
+                            prompt = `epic composition, symbolic representing the heritage: ${prompt},Japanese inspiration, fantasy pixel art evoking the charm of 8-bit/16-bit era games with modern shading techniques, trending on artstation, extremely detailed.`;
                           } else if (props.type === "ai") {
-                            prompt = `front view, unique tiny ${prompt} figurine, standing character, as supercell character, soft smooth lighting, soft shadows, skottie young, 3d blender render, polycount, modular constructivism, square image​, blue background, centered, pop surrealistic, emotional face`;
+                            prompt = `A full-body anime-style pixel art ${prompt} in a 3D-like, standing in a balanced, central position. The ${prompt} is rendered with clean, sharp pixel details and modern shading techniques, evoking the style of retro 8-bit/16-bit games but with a polished, high-quality finish. The background is a simple, solid color highlighting the character, allowing them to stand out clearly. Dynamic pose, extremely detailed.`;
                           }
                           // Send of the request for content image
                           createImg({
@@ -497,6 +493,15 @@ export const EffectFormWrapper: React.FC<EffectFormWrapperProps> = (props) => {
     enabled: fields.includes("items"),
   });
 
+  const { data: assetData } = api.misc.getAllGameAssetNames.useQuery(undefined, {
+    staleTime: Infinity,
+    enabled:
+      fields.includes("staticAssetPath") ||
+      fields.includes("appearAnimation") ||
+      fields.includes("staticAnimation") ||
+      fields.includes("disappearAnimation"),
+  });
+
   // Form for handling the specific tag
   const form = useForm<typeof tag>({
     defaultValues: shownTag,
@@ -512,6 +517,14 @@ export const EffectFormWrapper: React.FC<EffectFormWrapperProps> = (props) => {
   const watchStatic = form.watch("staticAnimation");
   const watchDisappear = form.watch("disappearAnimation");
   const watchAll = form.watch();
+
+  // Get images for the different animations and statics
+  const statics = assetData?.filter((a) => a.type === "STATIC");
+  const animations = assetData?.filter((a) => a.type === "ANIMATION");
+  const staticImage = statics?.find((a) => a.id === watchStaticPath)?.image;
+  const appearAnimImage = animations?.find((a) => a.id === watchAppear)?.image;
+  const disappearAnimImage = animations?.find((a) => a.id === watchDisappear)?.image;
+  const staticAnimImage = animations?.find((a) => a.id === watchStatic)?.image;
 
   // When user changes type, we need to update the effects array to re-render form
   useEffect(() => {
@@ -620,36 +633,37 @@ export const EffectFormWrapper: React.FC<EffectFormWrapperProps> = (props) => {
         };
       } else if ((value as string) === "description") {
         return { id: value, label: value, type: "richinput", doubleWidth: true };
-      } else if (
-        innerType instanceof z.ZodEnum &&
-        ["appearAnimation", "staticAnimation", "disappearAnimation"].includes(value)
-      ) {
-        const typedValue = value as
-          | "appearAnimation"
-          | "staticAnimation"
-          | "disappearAnimation";
+      } else if (innerType instanceof z.ZodString && value === "appearAnimation") {
         return {
           id: value,
-          type: "animation_array",
-          values: innerType._def.values as string[],
-          resetButton: true,
-          current:
-            typedValue === "appearAnimation"
-              ? watchAppear
-              : typedValue === "staticAnimation"
-                ? watchStatic
-                : watchDisappear,
+          values: animations,
+          multiple: false,
+          type: "db_values",
+          current: appearAnimImage,
         };
-      } else if (
-        innerType instanceof z.ZodEnum &&
-        (value as string) === "staticAssetPath"
-      ) {
+      } else if (innerType instanceof z.ZodString && value === "disappearAnimation") {
         return {
           id: value,
-          type: "statics_array",
-          resetButton: true,
-          values: innerType._def.values as string[],
-          current: watchStaticPath,
+          values: animations,
+          multiple: false,
+          type: "db_values",
+          current: disappearAnimImage,
+        };
+      } else if (innerType instanceof z.ZodString && value === "staticAnimation") {
+        return {
+          id: value,
+          values: animations,
+          multiple: false,
+          type: "db_values",
+          current: staticAnimImage,
+        };
+      } else if (innerType instanceof z.ZodString && value === "staticAssetPath") {
+        return {
+          id: value,
+          values: statics,
+          multiple: false,
+          type: "db_values",
+          current: staticImage,
         };
       } else if (
         innerType instanceof z.ZodLiteral ||

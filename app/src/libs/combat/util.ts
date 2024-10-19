@@ -1,7 +1,7 @@
 import { publicState, allState } from "./constants";
 import { getPower } from "./tags";
 import { randomInt } from "@/utils/math";
-import { availableUserActions } from "./actions";
+import { availableUserActions, getBasicActions } from "./actions";
 import { calcActiveUser } from "./actions";
 import { stillInBattle } from "./actions";
 import { secondsPassed } from "@/utils/time";
@@ -94,7 +94,13 @@ export const isUserStealthed = (
   userEffects: UserEffect[] | undefined,
 ) => {
   return userEffects?.some(
-    (e) => e.type === "stealth" && e.targetId === userId && !e.castThisRound,
+    (e) =>
+      e.type === "stealth" &&
+      e.targetId === userId &&
+      !e.castThisRound &&
+      "rounds" in e &&
+      e.rounds &&
+      e.rounds > 0,
   );
 };
 
@@ -1027,6 +1033,12 @@ export const processUsersForBattle = (info: {
         userjutsu.lastUsedRound = -userjutsu.jutsu.cooldown;
         return userjutsu;
       });
+
+    // Add basic actions to user for tracking cooldowns
+    user.basicActions = Object.values(getBasicActions(user)).map((action) => ({
+      id: action.id,
+      lastUsedRound: -action.cooldown,
+    }));
 
     // Sort if we have a loadout
     if (user?.loadout?.jutsuIds) {

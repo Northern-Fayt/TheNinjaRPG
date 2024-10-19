@@ -75,7 +75,10 @@ export const absorb = (
 };
 
 /** Prevent buffing */
-export const buffPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const buffPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
@@ -84,11 +87,18 @@ export const buffPrevent = (effect: UserEffect, target: BattleUserState) => {
     return info;
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from buffs`,
+      color: "blue",
+    };
   }
 };
 
 /** Prevent debuffing */
-export const debuffPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const debuffPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
@@ -97,6 +107,10 @@ export const debuffPrevent = (effect: UserEffect, target: BattleUserState) => {
     return info;
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from debuffs`,
+      color: "blue",
+    };
   }
 };
 
@@ -862,13 +876,20 @@ export const flee = (
 };
 
 /** Check if flee prevent is successful depending on static chance calculation */
-export const fleePrevent = (effect: UserEffect, target: BattleUserState) => {
+export const fleePrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot flee");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from fleeing`,
+      color: "blue",
+    };
   }
 };
 
@@ -919,7 +940,10 @@ export const heal = (
 };
 
 /** Prevent healing */
-export const healPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const healPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
@@ -927,6 +951,10 @@ export const healPrevent = (effect: UserEffect, target: BattleUserState) => {
     return info;
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from healing`,
+      color: "blue",
+    };
   }
 };
 
@@ -1091,13 +1119,20 @@ export const move = (
 };
 
 /** Prevent target from moving */
-export const movePrevent = (effect: UserEffect, target: BattleUserState) => {
+export const movePrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot move");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from moving`,
+      color: "blue",
+    };
   }
 };
 
@@ -1127,13 +1162,20 @@ export const onehitkill = (
 };
 
 /** Status effect to prevent OHKO */
-export const onehitkillPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const onehitkillPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot be one-hit-killed");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from one-hits`,
+      color: "blue",
+    };
   }
 };
 
@@ -1190,38 +1232,58 @@ export const rob = (
 };
 
 /** Prevent robbing */
-export const robPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const robPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot be robbed");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from being robbed`,
+      color: "blue",
+    };
   }
 };
 
 /** Prevent cleansing */
-export const cleansePrevent = (effect: UserEffect, target: BattleUserState) => {
+export const cleansePrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot be cleansed");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from cleansing`,
+      color: "blue",
+    };
   }
 };
 
 /** Prevent clearing */
-export const clearPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const clearPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
-  console.log(mainCheck);
   if (mainCheck) {
     const info = getInfo(target, effect, "cannot be cleared");
     console.log(info);
     return info;
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from being cleared`,
+      color: "blue",
+    };
   }
 };
 
@@ -1260,13 +1322,20 @@ export const sealCheck = (effect: UserEffect, sealEffects: UserEffect[]) => {
 };
 
 /** Prevent sealing of bloodline effects with a static chance */
-export const sealPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const sealPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "bloodline cannot be sealed");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from being sealed`,
+      color: "blue",
+    };
   }
 };
 
@@ -1310,13 +1379,20 @@ export const stun = (
 };
 
 /** Prevent target from being stunned */
-export const stunPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const stunPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot be stunned");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from being stunned`,
+      color: "blue",
+    };
   }
 };
 
@@ -1387,13 +1463,20 @@ export const summon = (usersState: BattleUserState[], effect: GroundEffect) => {
 };
 
 /** Prevent target from being stunned */
-export const summonPrevent = (effect: UserEffect, target: BattleUserState) => {
+export const summonPrevent = (
+  effect: UserEffect,
+  target: BattleUserState,
+): ActionEffect | undefined => {
   const { power } = getPower(effect);
   const mainCheck = Math.random() < power / 100;
   if (mainCheck) {
     return getInfo(target, effect, "cannot summon companions");
   } else if (effect.isNew) {
     effect.rounds = 0;
+    return {
+      txt: `${target.username} could not be prevented from summoning`,
+      color: "blue",
+    };
   }
 };
 

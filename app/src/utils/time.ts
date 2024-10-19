@@ -1,3 +1,5 @@
+import type { TimeUnit } from "@/drizzle/constants";
+
 /**
  * Get game time which is the UTC HH:MM:SS timestring
  */
@@ -114,11 +116,29 @@ export const getCurrentSeason = () => {
     case 7:
     case 8:
       return "summer";
-    case 9:
     case 10:
+      return "halloween";
+    case 9:
     case 11:
       return "fall";
     default:
       return "summer";
+  }
+};
+
+export const getMillisecondsFromTimeUnit = (timeUnit: TimeUnit) => {
+  switch (timeUnit) {
+    case "minutes":
+      return 1000 * 60;
+    case "hours":
+      return 1000 * 60 * 60;
+    case "days":
+      return 1000 * 60 * 60 * 24;
+    case "weeks":
+      return 1000 * 60 * 60 * 24 * 7;
+    case "months":
+      return 1000 * 60 * 60 * 24 * 30;
+    default:
+      return 1000;
   }
 };

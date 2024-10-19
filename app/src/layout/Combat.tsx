@@ -69,6 +69,11 @@ const Combat: React.FC<CombatProps> = (props) => {
   );
   const suid = userData?.userId;
 
+  // Query data
+  const { data: gameAssets } = api.misc.getAllGameAssetNames.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
   // Convenience method for helping people to not move too fast
   const canPerformAction = () => {
     const minuteAgo = secondsFromNow(-60);
@@ -326,7 +331,7 @@ const Combat: React.FC<CombatProps> = (props) => {
     // Reference to the mount
     const sceneRef = mountRef.current;
 
-    if (sceneRef && battle.current) {
+    if (sceneRef && battle.current && gameAssets !== undefined) {
       // Used for map size calculations
       const backgroundLengthToWidth = 576 / 1024;
 
@@ -468,6 +473,7 @@ const Combat: React.FC<CombatProps> = (props) => {
             grid: grid.current,
             animationId,
             spriteMixer,
+            gameAssets: gameAssets ?? [],
           });
 
           // Highlight information on user hover
@@ -518,13 +524,15 @@ const Combat: React.FC<CombatProps> = (props) => {
         window.removeEventListener("resize", handleResize);
         sceneRef.removeEventListener("mousemove", onDocumentMouseMove);
         sceneRef.removeEventListener("mouseleave", onDocumentMouseLeave);
-        sceneRef.removeChild(renderer.domElement);
+        if (sceneRef.contains(renderer.domElement)) {
+          sceneRef.removeChild(renderer.domElement);
+        }
         cleanUp(scene, renderer);
         cancelAnimationFrame(animationId);
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [battleId]);
+  }, [battleId, gameAssets]);
 
   // Derived variables
   const showNextMatch =

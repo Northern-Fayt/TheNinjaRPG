@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { UserData, UserReport } from "../../drizzle/schema";
+import { TimeUnits } from "@/drizzle/constants";
+import type { UserData, UserReport } from "@/drizzle/schema";
 
 export const systems = [
   "forum_comment",
@@ -21,7 +22,8 @@ export type UserReportSchema = z.infer<typeof userReportSchema>;
 export const reportCommentSchema = z.object({
   comment: z.string().min(10).max(5000),
   object_id: z.string(),
-  banTime: z.number().min(0).max(365),
+  banTime: z.number().min(0).max(100),
+  banTimeUnit: z.enum(TimeUnits),
 });
 
 export type ReportCommentSchema = z.infer<typeof reportCommentSchema>;
@@ -33,7 +35,7 @@ export const canSeeReport = (user: UserData, report: UserReport) => {
   return (
     report.reporterUserId === user.userId ||
     report.reportedUserId === user.userId ||
-    ["MODERATOR", "ADMIN"].includes(user.role)
+    ["MODERATOR", "HEAD_MODERATOR", "ADMIN"].includes(user.role)
   );
 };
 
@@ -52,10 +54,16 @@ export const canModerateReports = (user: UserData, report: UserReport) => {
     report.reportedUserId !== user.userId &&
     ((user.role === "ADMIN" && report.status === "UNVIEWED") ||
       (user.role === "MODERATOR" && report.status === "UNVIEWED") ||
+      (user.role === "HEAD_MODERATOR" && report.status === "UNVIEWED") ||
+      (user.role === "ADMIN" && report.status === "OFFICIAL_WARNING") ||
       (user.role === "ADMIN" && report.status === "BAN_ACTIVATED") ||
       (user.role === "ADMIN" && report.status === "BAN_ESCALATED") ||
       (user.role === "ADMIN" && report.status === "SILENCE_ACTIVATED") ||
-      (user.role === "ADMIN" && report.status === "SILENCE_ESCALATED"))
+      (user.role === "ADMIN" && report.status === "SILENCE_ESCALATED") ||
+      (user.role === "HEAD_MODERATOR" && report.status === "BAN_ACTIVATED") ||
+      (user.role === "HEAD_MODERATOR" && report.status === "BAN_ESCALATED") ||
+      (user.role === "HEAD_MODERATOR" && report.status === "SILENCE_ACTIVATED") ||
+      (user.role === "HEAD_MODERATOR" && report.status === "SILENCE_ESCALATED"))
   );
 };
 
@@ -64,8 +72,7 @@ export const canModerateReports = (user: UserData, report: UserReport) => {
  */
 export const canDeleteComment = (user: UserData, commentAuthorId: string) => {
   return (
-    user.role === "ADMIN" ||
-    user.role === "MODERATOR" ||
+    ["MODERATOR", "HEAD_MODERATOR", "ADMIN"].includes(user.role) ||
     user.userId === commentAuthorId
   );
 };
@@ -102,5 +109,5 @@ export const canClearReport = (user: UserData, report: UserReport) => {
  * Can change another user's avatar
  */
 export const canChangePublicUser = (user: UserData) => {
-  return ["MODERATOR", "ADMIN"].includes(user.role);
+  return ["MODERATOR", "HEAD_MODERATOR", "ADMIN"].includes(user.role);
 };

@@ -20,8 +20,10 @@ import { fetchUser } from "./profile";
 import { fetchImage } from "./conceptart";
 import { canSeeSecretData } from "@/utils/permissions";
 import { getServerPusher } from "@/libs/pusher";
-import type { DrizzleClient } from "../../db";
+import { getMillisecondsFromTimeUnit } from "@/utils/time";
 import sanitize from "@/utils/sanitize";
+import type { ReportCommentSchema } from "@/validators/reports";
+import type { DrizzleClient } from "../../db";
 
 const pusher = getServerPusher();
 
@@ -114,6 +116,8 @@ export const reportsRouter = createTRPCRouter({
       const skip = currentCursor * input.limit;
       const user = await fetchUser(ctx.drizzle, ctx.userId);
       const reportedUser = alias(userData, "reportedUser");
+      // If user, then only show handled reports
+      const isUnhandled = user.role === "USER" ? false : input.isUnhandled;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { reporterUserId, ...rest } = getTableColumns(userReport);
       const reports = await ctx.drizzle
@@ -125,16 +129,25 @@ export const reportsRouter = createTRPCRouter({
         .where(
           and(
             // Handled or not
-            input.isUnhandled === true
+            isUnhandled
               ? inArray(userReport.status, ["UNVIEWED", "BAN_ESCALATED"])
               : notInArray(userReport.status, ["UNVIEWED", "BAN_ESCALATED"]),
             // Active or Closed
-            ...(input.isUnhandled === true || input.showAll === true
+            ...(isUnhandled || input.showAll
               ? []
               : [inArray(userReport.status, ["BAN_ACTIVATED", "OFFICIAL_WARNING"])]),
             // Pertaining to user (if user)
             ...(user.role === "USER"
-              ? [eq(userReport.reportedUserId, ctx.userId)]
+              ? [
+                  and(
+                    eq(userReport.reportedUserId, ctx.userId),
+                    inArray(userReport.status, [
+                      "BAN_ACTIVATED",
+                      "OFFICIAL_WARNING",
+                      "SILENCE_ACTIVATED",
+                    ]),
+                  ),
+                ]
               : []),
           ),
         )
@@ -278,10 +291,7 @@ export const reportsRouter = createTRPCRouter({
             status: "BAN_ACTIVATED",
             adminResolved: user.role === "ADMIN" ? 1 : 0,
             updatedAt: new Date(),
-            banEnd:
-              input.banTime !== undefined
-                ? new Date(new Date().getTime() + input.banTime * 24 * 60 * 60 * 1000)
-                : null,
+            banEnd: getBanEndDate(input),
           })
           .where(eq(userReport.id, input.object_id)),
         ctx.drizzle.insert(userReportComment).values({
@@ -326,10 +336,7 @@ export const reportsRouter = createTRPCRouter({
             status: "SILENCE_ACTIVATED",
             adminResolved: user.role === "ADMIN" ? 1 : 0,
             updatedAt: new Date(),
-            banEnd:
-              input.banTime !== undefined
-                ? new Date(new Date().getTime() + input.banTime * 24 * 60 * 60 * 1000)
-                : null,
+            banEnd: getBanEndDate(input),
           })
           .where(eq(userReport.id, input.object_id)),
         ctx.drizzle.insert(userReportComment).values({
@@ -570,4 +577,13 @@ export const fetchUserReport = async (
     entry.reporterUserId = null;
   }
   return entry;
+};
+
+export const getBanEndDate = (input: ReportCommentSchema) => {
+  return input.banTime !== undefined && input.banTimeUnit !== undefined
+    ? new Date(
+        new Date().getTime() +
+          input.banTime * getMillisecondsFromTimeUnit(input.banTimeUnit),
+      )
+    : null;
 };

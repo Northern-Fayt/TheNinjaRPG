@@ -1,3 +1,6 @@
+export const GameAssetTypes = ["STATIC", "ANIMATION"] as const;
+export type GameAssetType = (typeof GameAssetTypes)[number];
+
 export const LetterRanks = ["D", "C", "B", "A", "S", "H"] as const;
 export type LetterRank = (typeof LetterRanks)[number];
 
@@ -88,6 +91,7 @@ export const UserRoles = [
   "MODERATOR",
   "CONTENT",
   "EVENT",
+  "HEAD_MODERATOR",
   "ADMIN",
   "CONTENT-ADMIN",
 ] as const;
@@ -136,6 +140,9 @@ export const BanStates = [
   "SILENCE_ESCALATED",
   "OFFICIAL_WARNING",
 ] as const;
+
+export const TimeUnits = ["minutes", "hours", "days", "weeks", "months"] as const;
+export type TimeUnit = (typeof TimeUnits)[number];
 
 export const WeaponTypes = [
   "STAFF",
@@ -442,6 +449,7 @@ export const CLAN_CREATE_PRESTIGE_REQUIREMENT = 100;
 export const CLAN_CREATE_RYO_COST = 1000000;
 export const CLAN_RANK_REQUIREMENT = "GENIN";
 export const CLAN_MAX_MEMBERS = 50;
+export const CLANS_PER_STRUCTURE_LEVEL = 3;
 export const CLAN_LOBBY_SECONDS = 30;
 export const CLAN_BATTLE_REWARD_POINTS = 50;
 export const MAX_TRAINING_BOOST = 15;
@@ -469,6 +477,12 @@ export const FRIENDLY_PRESTIGE_COST = 10000;
 export const WAR_FUNDS_COST = 100;
 export const KAGE_MAX_DAILIES = 3;
 export const KAGE_MAX_ELDERS = 5;
+export const KAGE_DELAY_SECS = 24 * 3600;
+
+// Game assets
+export const ID_ANIMATION_SMOKE = "gkYHdSzsHu";
+export const ID_ANIMATION_HIT = "oh4kVNrAwF";
+export const ID_ANIMATION_HEAL = "I9aYhT5wMB";
 
 // Images
 export const IMG_AVATAR_DEFAULT =
@@ -481,6 +495,17 @@ export const IMG_WALLPAPER_SUMMER =
   "https://utfs.io/f/5f637e42-b2e3-4fdd-9b96-578d0f729fb0-mg8i56.webp";
 export const IMG_WALLPAPER_FALL =
   "https://utfs.io/f/e6f437e0-1cfa-4986-b9e5-bb4957ff3813-ul0asa.webp";
+export const IMG_WALLPAPER_HALLOWEEN =
+  "https://utfs.io/f/Hzww9EQvYURJ7dGuA2BXKPBOUWGyFuM4DlL1v5HNTZhkte0z";
+export const IMG_LAYOUT_NAVBAR =
+  "https://utfs.io/f/Hzww9EQvYURJ1znttRb6bo95WClq4K0wxZUmJcvThgdVenO3";
+export const IMG_LAYOUT_NAVBAR_HALLOWEEN =
+  "https://utfs.io/f/Hzww9EQvYURJbYxvuGAtYUndMi56GkX19q0A4PzyeIloBrEa";
+export const IMG_LAYOUT_HANDSIGN =
+  "https://utfs.io/f/Hzww9EQvYURJ0hKI3IgrYldRWJcD6vE10SjNsXHeA9pVMfQi";
+export const IMG_LAYOUT_HANDSIGN_HALLOWEEN =
+  "https://utfs.io/f/Hzww9EQvYURJcGYTUXSnxBpQqGNDcTHbLmYz8uXAl3oa54ti";
+
 export const IMG_LOGO_FULL =
   "https://utfs.io/f/5a8a34a2-b126-4674-b95d-db37a14b028e-1zbfv.webp";
 export const IMG_LOGO_SHORT =

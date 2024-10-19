@@ -38,7 +38,7 @@ import type { UserData, Quest } from "@/drizzle/schema";
 import type { DrizzleClient } from "@/server/db";
 
 export const questsRouter = createTRPCRouter({
-  getAll: protectedProcedure
+  getAll: publicProcedure
     .input(
       questFilteringSchema.extend({
         cursor: z.number().nullish(),
@@ -280,7 +280,7 @@ export const questsRouter = createTRPCRouter({
       const current = user.userQuests?.filter(
         (q) => q.quest.questType === "event" && !q.endAt,
       );
-      if (questData.questType !== "mission") {
+      if (!["mission", "crime"].includes(questData.questType)) {
         if (current && current.length >= 4) {
           return errorResponse(`Already 4 active event quests`);
         }
@@ -292,7 +292,7 @@ export const questsRouter = createTRPCRouter({
         }
       } else {
         if (questData.questRank !== "A") {
-          return errorResponse(`Only A rank missions are allowed`);
+          return errorResponse(`Only A rank missions/crimes are allowed`);
         }
         if (user.dailyMissions >= MISSIONS_PER_DAY) {
           return errorResponse("Limit reached");
@@ -306,6 +306,14 @@ export const questsRouter = createTRPCRouter({
           user,
           questData.questType === "mission",
         ),
+        ...(["mission", "crime"].includes(questData.questType)
+          ? [
+              ctx.drizzle
+                .update(userData)
+                .set({ dailyMissions: sql`${userData.dailyMissions} + 1` })
+                .where(eq(userData.userId, user.userId)),
+            ]
+          : []),
       ]);
       return { success: true, message: `Quest started: ${questData.name}` };
     }),
